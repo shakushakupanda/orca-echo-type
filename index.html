@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orca echo タイピング</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one working column — the prompt on top, the live split-keyboard map under it, stats and keymap setup below */
+:root{
+  --bg:#E8EDF0; --surface:#F7F9FA; --ink:#0F1C25; --muted:#586873; --line:#CBD5DB;
+  --key:#FFFFFF; --key-thumb:#EEF2F5; --key-edge:#B2BFC7;
+  --accent:#0A8B98; --accent-soft:#D3ECEF; --on-accent:#FFFFFF;
+  --hold:#4D4FCC; --hold-soft:#E2E2F9; --mod:#C27C0C; --mod-soft:#F7EAD1; --miss:#CC392D; --ok:#2E8B57;
+  --f-display:"Dela Gothic One","Zen Kaku Gothic New",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B141A; --surface:#111D25; --ink:#E3EBEF; --muted:#8A9BA6; --line:#24343F;
+  --key:#192731; --key-thumb:#15222B; --key-edge:#2D3E4A;
+  --accent:#37C3CF; --accent-soft:#12343A; --on-accent:#05181C;
+  --hold:#8E90FF; --hold-soft:#24254A; --mod:#EFB04B; --mod-soft:#3A2D14; --miss:#F0675B; --ok:#5CC98C;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B141A; --surface:#111D25; --ink:#E3EBEF; --muted:#8A9BA6; --line:#24343F;
+  --key:#192731; --key-thumb:#15222B; --key-edge:#2D3E4A;
+  --accent:#37C3CF; --accent-soft:#12343A; --on-accent:#05181C;
+  --hold:#8E90FF; --hold-soft:#24254A; --mod:#EFB04B; --mod-soft:#3A2D14; --miss:#F0675B; --ok:#5CC98C;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:40px;height:40px;flex:none}
+.mark circle{fill:none;stroke:var(--accent)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(22px,4vw,30px);line-height:1.1;margin:0;letter-spacing:.01em;text-wrap:balance}
+.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
+.tabs{align-self:flex-start;display:flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:7px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.tabs button:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.conn-box{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.conn{font-size:12px;color:var(--muted);max-width:42ch}
+.conn.ok{color:var(--ok)} .conn.err{color:var(--miss)}
+.nextkeys{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.nextkeys li{display:flex;flex-direction:column;align-items:center;min-width:44px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.nextkeys li b{font-family:var(--f-mono);font-size:16px;line-height:1.2}
+.nextkeys li span{font-size:10px;color:var(--muted);white-space:nowrap}
+.nextkeys li.first{border-color:var(--accent);background:var(--accent-soft)}
+.nextkeys li.first span{color:var(--accent)}
+.nextkeys li.lay span{color:var(--hold)}
+.nextkeys li.na b{color:var(--miss)}
+.startcue{color:var(--accent);font-weight:700}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+.banner{border:1px solid var(--mod);background:var(--mod-soft);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px}
+.prompt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px clamp(16px,3vw,32px) 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.p-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);letter-spacing:.06em}
+.p-main{font-size:clamp(22px,3.6vw,32px);font-weight:700;line-height:1.35;text-wrap:balance;min-height:1.35em}
+.p-kana{font-size:17px;color:var(--muted);letter-spacing:.04em}
+.p-line{font-family:var(--f-mono);font-size:clamp(16px,2.4vw,22px);line-height:1.5;word-break:break-all;min-width:0}
+.done{color:var(--muted);opacity:.55}
+.cur{color:var(--accent);border-bottom:3px solid var(--accent)}
+.cur.sp::before{content:"␣"}
+.k-cur{color:var(--accent)}
+.hint{margin-top:6px;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:2.2em}
+.hint kbd{font-family:var(--f-mono);font-size:13px;padding:1px 8px;border-radius:6px;border:1.5px solid currentColor;background:var(--key)}
+.hint .t{color:var(--accent)} .hint .h{color:var(--hold)} .hint .m{color:var(--mod)}
+.hint .plus{color:var(--muted)}
+.hint .warn{color:var(--miss)}
+.flash-ok{animation:okf .35s ease}
+@keyframes okf{0%{box-shadow:0 0 0 0 var(--accent)}100%{box-shadow:0 0 0 10px transparent}}
+.board{display:flex;flex-direction:column;gap:10px;min-width:0}
+.board-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font:inherit;font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.need{border-color:var(--hold);color:var(--hold)}
+.chip.on.need{background:var(--hold);color:var(--on-accent);border-color:var(--hold)}
+.chip.auto{border-style:dashed}
+.kmsrc{font-size:12px;color:var(--muted)}
+.kmsrc button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
+.kbwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 10px}
+#kb{display:block;width:100%;min-width:560px;height:auto}
+.key{cursor:default}
+.key .cap{fill:var(--key);stroke:var(--key-edge);stroke-width:1.2}
+.key.thumb .cap{fill:var(--key-thumb)}
+.key.aux .cap{stroke-dasharray:4 3;fill:transparent}
+.body{fill:var(--bg);stroke:var(--line);stroke-width:2}
+.ball{fill:var(--key-edge);stroke:var(--muted);stroke-width:1.5}
+.ball-hl{fill:var(--key);opacity:.55}
+.wheel{fill:var(--key-thumb);stroke:var(--key-edge);stroke-width:1.5}
+.wheel-l{stroke:var(--key-edge);stroke-width:2}
+.key text{fill:var(--ink);text-anchor:middle;font-family:var(--f-body);font-weight:700;pointer-events:none}
+.key text.s{fill:var(--muted);font-weight:500;font-size:9px}
+.key.trans text.m{fill:var(--muted);opacity:.5;font-weight:500}
+.key.none text.m{fill:var(--muted);opacity:.4}
+.key .sonar{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center}
+.key.is-target .cap{fill:var(--accent);stroke:var(--accent)}
+.key.is-target text,.key.is-target text.s{fill:var(--on-accent);opacity:1}
+.key.is-target .sonar{animation:sonar 1.3s ease-out infinite}
+@keyframes sonar{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.55)}}
+.key.is-hold .cap{fill:var(--hold-soft);stroke:var(--hold);stroke-width:2.6}
+.key.is-hold text{fill:var(--hold);opacity:1}
+.key.is-mod .cap{fill:var(--mod-soft);stroke:var(--mod);stroke-width:2.6}
+.key.is-mod text{fill:var(--mod);opacity:1}
+.key.missf .cap{animation:missf .3s ease}
+@keyframes missf{0%,60%{fill:var(--miss);stroke:var(--miss)}}
+.editing .key{cursor:pointer}
+.key.sel .cap{stroke:var(--ink);stroke-width:2.6;stroke-dasharray:4 3}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;border:2px solid}
+.editor{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px dashed var(--ink);border-radius:10px;padding:10px 12px;font-size:13px}
+.editor input{font-family:var(--f-mono);font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:0;flex:1 1 180px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat .lab{font-size:11px;color:var(--muted);letter-spacing:.08em}
+.stat .val{font-family:var(--f-mono);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .unit{font-size:12px;color:var(--muted);font-family:var(--f-body);font-weight:400;margin-left:3px}
+.weak{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.weak b{font-family:var(--f-mono);color:var(--miss);border:1px solid var(--miss);border-radius:6px;padding:0 7px;font-weight:600}
+.weak b small{color:var(--muted);font-weight:400;margin-left:4px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+summary{cursor:pointer;padding:14px 18px;font-weight:700;list-style-position:inside}
+.set{padding:0 18px 18px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:22px}
+.set h3{font-size:13px;margin:0 0 6px;letter-spacing:.04em}
+.set p{margin:0 0 8px;font-size:13px;color:var(--muted);max-width:62ch}
+.set code{font-family:var(--f-mono);font-size:12px}
+textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.btn{font:inherit;font-size:13px;font-weight:500;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.status{font-size:13px;margin-top:8px}
+.status.err{color:var(--miss)} .status.ok{color:var(--ok)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.seg button{font:inherit;font-size:13px;border:0;background:var(--bg);color:var(--muted);padding:5px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.file{font-size:12px}
+.board-right{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.seg.seg-sm{margin:0;align-items:center}
+.seg-lab{font-size:12px;color:var(--muted);padding:0 8px;background:var(--surface);align-self:stretch;display:flex;align-items:center;border-right:1px solid var(--line)}
+@media (max-width:720px){.set{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.key.is-target .sonar{animation:none;opacity:.5;transform:scale(1.15)}.flash-ok,.key.missf .cap{animation:none}}
+</style>
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="5" stroke-width="3"/><circle cx="20" cy="20" r="11" stroke-width="2" opacity=".6"/><circle cx="20" cy="20" r="17" stroke-width="1.5" opacity=".3"/></svg>
+      <div>
+        <h1>Orca echo タイピング</h1>
+        <p class="sub">キーマップを読んで、次に押すキーとレイヤーを光らせます</p>
+      </div>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="練習モード">
+      <button data-mode="romaji">ローマ字</button>
+      <button data-mode="en">英語</button>
+      <button data-mode="sym">数字・記号</button>
+      <button data-mode="code">コード</button>
+      <button data-mode="shortcut">ショートカット</button>
+      <button data-mode="mix">ミックス</button>
+  </nav>
+
+  <div class="banner" id="ime" hidden>日本語入力がオンになっています。英数モードに切り替えてください。ローマ字練習もIMEをオフにして打ちます。</div>
+  <div class="banner" id="focusnote" hidden>ページをクリックすると入力を受け付けます。</div>
+
+  <section class="prompt" id="prompt" aria-live="polite">
+    <div class="p-meta"><span id="p-mode"></span><span id="p-count"></span></div>
+    <div class="p-main" id="p-main"></div>
+    <div class="p-kana" id="p-kana"></div>
+    <div class="p-line" id="p-line"></div>
+    <div class="hint" id="hint"></div>
+    <ol class="nextkeys" id="nextkeys" aria-label="この先に押すキー"></ol>
+  </section>
+
+  <section class="board">
+    <div class="board-top">
+      <div class="chips" id="chips"></div>
+      <div class="board-right">
+        <div class="seg seg-sm" id="host2" role="group" aria-label="PC側の入力配列"><span class="seg-lab">PC配列</span><button data-host="jis">JIS</button><button data-host="us">US</button></div>
+        <div class="kmsrc" id="kmsrc"></div>
+      </div>
+    </div>
+    <div class="kbwrap" id="kbwrap"><svg id="kb" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Orca echo キー配列"></svg></div>
+    <div class="editor" id="editor" hidden>
+      <span id="ed-where"></span>
+      <input id="ed-input" spellcheck="false" aria-label="バインディング">
+      <button class="btn pri" id="ed-apply">適用</button>
+      <button class="btn" id="ed-close">閉じる</button>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--accent);border-color:var(--accent)"></i>押すキー</span>
+      <span><i class="sw" style="background:var(--hold-soft);border-color:var(--hold)"></i>押しながら（レイヤー）</span>
+      <span><i class="sw" style="background:var(--mod-soft);border-color:var(--mod)"></i>押しながら（Shift・Ctrlなど）</span>
+      <span>Esc で1文字スキップ</span>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><span class="lab">速度</span><span class="val" id="s-wpm">0<span class="unit">WPM</span></span></div>
+    <div class="stat"><span class="lab">正確率</span><span class="val" id="s-acc">—</span></div>
+    <div class="stat"><span class="lab">ミス</span><span class="val" id="s-miss">0</span></div>
+    <div class="stat"><span class="lab">時間</span><span class="val" id="s-time">0:00</span></div>
+  </section>
+  <div class="weak" id="weak"></div>
+
+  <details id="settings">
+    <summary>キーマップと設定</summary>
+    <div class="set">
+      <div>
+        <h3>キーマップ</h3>
+        <p>Keychron Launcher で書き出した <code>Keymap-Orca_echo-….json</code> を選ぶか、中身を貼って読み込みます。ZMK の <code>.keymap</code> もそのまま読めます。tri-layer（Lower＋Upper で Adjust）、Mod-Tap、Layer-Tap も解釈します。</p>
+        <textarea id="km" spellcheck="false" aria-label="キーマップ（Launcher JSON または ZMK keymap）"></textarea>
+        <div class="row">
+          <button class="btn pri" id="km-load">読み込む</button>
+          <label class="btn file">ファイルを選ぶ<input type="file" id="km-file" accept=".json,.keymap,.dtsi,.txt" hidden></label>
+          <button class="btn" id="km-sample">初期キーマップに戻す</button>
+          <button class="btn" id="km-edit">キーを直接編集</button>
+        </div>
+        <div class="status" id="km-status"></div>
+      </div>
+      <div>
+        <h3>PC側の入力配列</h3>
+        <p>同じキーコードでも、OSの配列設定で出る記号が変わります（例: <code>LS(N2)</code> は US で @、JIS で "）。</p>
+        <div class="seg" id="host">
+          <button data-host="jis">JIS</button><button data-host="us">US</button>
+        </div>
+        <h3>ショートカットの修飾キー</h3>
+        <div class="seg" id="modsel">
+          <button data-mod="ctrl">Ctrl（Windows）</button><button data-mod="gui">Cmd（Mac）</button>
+        </div>
+        <h3>物理配置について</h3>
+        <p>Launcher の画面どおりの配置です（左右7列ずつ、内側に縦長の Mouse キー、左親指に Space とホイール、右にトラックボール）。ZMK の keymap を読んだときは、キー数から近い並びを組みます。</p>
+      </div>
+    </div>
+  </details>
+  <footer class="foot">非公式ツールです。Keychron とは関係ありません。配列は Keychron Launcher の書き出しファイルから読み込みます。</footer>
+</div>
+
+<script>
+/*CORE*/
+const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ALIAS={};
+for(const c of LETTERS) ALIAS[c]=[c,0];
+for(const d of '1234567890'){ALIAS['N'+d]=['N'+d,0];ALIAS['NUMBER_'+d]=['N'+d,0];ALIAS['NUM_'+d]=['N'+d,0];}
+function al(names,u,s){for(const n of names.split(' '))ALIAS[n]=[u,s];}
+al('EXCL EXCLAMATION','N1',1);al('AT AT_SIGN','N2',1);al('HASH POUND','N3',1);al('DLLR DOLLAR','N4',1);
+al('PRCNT PERCENT','N5',1);al('CARET','N6',1);al('AMPS AMPERSAND','N7',1);al('STAR ASTRK ASTERISK','N8',1);
+al('LPAR LEFT_PARENTHESIS','N9',1);al('RPAR RIGHT_PARENTHESIS','N0',1);
+al('MINUS','MINUS',0);al('UNDER UNDERSCORE','MINUS',1);al('EQUAL','EQUAL',0);al('PLUS','EQUAL',1);
+al('LBKT LEFT_BRACKET','LBKT',0);al('LBRC LEFT_BRACE','LBKT',1);al('RBKT RIGHT_BRACKET','RBKT',0);al('RBRC RIGHT_BRACE','RBKT',1);
+al('BSLH BACKSLASH','BSLH',0);al('PIPE','BSLH',1);al('NUHS NON_US_HASH','NUHS',0);
+al('SEMI SEMICOLON','SEMI',0);al('COLON','SEMI',1);al('SQT APOS APOSTROPHE SINGLE_QUOTE','SQT',0);al('DQT DOUBLE_QUOTES','SQT',1);
+al('GRAVE','GRAVE',0);al('TILDE','GRAVE',1);al('COMMA','COMMA',0);al('LT LESS_THAN','COMMA',1);
+al('DOT PERIOD','DOT',0);al('GT GREATER_THAN','DOT',1);al('FSLH SLASH','FSLH',0);al('QMARK QUESTION','FSLH',1);
+al('SPACE SPC','SPACE',0);al('INT_RO INT1','INT1',0);al('INT_YEN INT3','INT3',0);
+for(const d of '1234567890')ALIAS['KP_N'+d]=['KP'+d,0];
+al('KP_DOT','KPDOT',0);al('KP_SLASH KP_DIVIDE','KPSL',0);al('KP_ASTERISK KP_MULTIPLY','KPAST',0);al('KP_MINUS KP_SUBTRACT','KPMIN',0);al('KP_PLUS','KPPLUS',0);
+
+const US={N1:['1','!'],N2:['2','@'],N3:['3','#'],N4:['4','$'],N5:['5','%'],N6:['6','^'],N7:['7','&'],N8:['8','*'],N9:['9','('],N0:['0',')'],
+MINUS:['-','_'],EQUAL:['=','+'],LBKT:['[','{'],RBKT:[']','}'],BSLH:['\\','|'],NUHS:['\\','|'],SEMI:[';',':'],SQT:["'",'"'],GRAVE:['`','~'],COMMA:[',','<'],DOT:['.','>'],FSLH:['/','?']};
+const JIS={N1:['1','!'],N2:['2','"'],N3:['3','#'],N4:['4','$'],N5:['5','%'],N6:['6','&'],N7:['7',"'"],N8:['8','('],N9:['9',')'],N0:['0',null],
+MINUS:['-','='],EQUAL:['^','~'],LBKT:['@','`'],RBKT:['[','{'],BSLH:[']','}'],NUHS:[']','}'],SEMI:[';','+'],SQT:[':','*'],COMMA:[',','<'],DOT:['.','>'],FSLH:['/','?'],INT1:['\\','_'],INT3:['\\','|']};
+
+for(const T of [US,JIS]){for(const d of '1234567890')T['KP'+d]=[d,null];T.KPDOT=['.',null];T.KPSL=['/',null];T.KPAST=['*',null];T.KPMIN=['-',null];T.KPPLUS=['+',null];}
+const MODNAME={};
+function mn(names,m){for(const n of names.split(' '))MODNAME[n]=m;}
+mn('LSHIFT LSHFT LEFT_SHIFT RSHIFT RSHFT RIGHT_SHIFT','shift');
+mn('LCTRL LCTL LEFT_CONTROL RCTRL RCTL RIGHT_CONTROL','ctrl');
+mn('LALT LEFT_ALT RALT RIGHT_ALT','alt');
+mn('LGUI LCMD LWIN LMETA LEFT_GUI RGUI RCMD RWIN RMETA RIGHT_GUI','gui');
+const MODLABEL={shift:'⇧',ctrl:'Ctrl',alt:'Alt',gui:'Cmd'};
+const NONCHAR={ENTER:'⏎',RET:'⏎',RETURN:'⏎',BSPC:'⌫',BACKSPACE:'⌫',TAB:'Tab',ESC:'Esc',ESCAPE:'Esc',DEL:'Del',DELETE:'Del',CAPS:'Caps',CAPSLOCK:'Caps',
+UP:'↑',DOWN:'↓',LEFT:'←',RIGHT:'→',PG_UP:'PgUp',PAGE_UP:'PgUp',PG_DN:'PgDn',PAGE_DOWN:'PgDn',HOME:'Home',END:'End',INS:'Ins',INSERT:'Ins',
+LANG1:'かな',LANG2:'英数',C_VOL_UP:'Vol+',C_VOL_DN:'Vol−',C_MUTE:'Mute',C_PP:'Play',C_NEXT:'⏭',C_PREV:'⏮',C_STOP:'⏹',PSCRN:'PrtSc',SLCK:'ScrLk',PAUSE_BREAK:'Pause',
+INT_HENKAN:'変換',INT_MUHENKAN:'無変換',INT_KANA:'カナ',K_APP:'Menu',KP_ENTER:'⏎',KP_NUM:'NumLk'};
+
+function resolveKey(expr){
+  const m={shift:false,ctrl:false,alt:false,gui:false};
+  let e=(expr||'').trim(),r;
+  while((r=/^([LR][SCAG])\((.*)\)$/.exec(e))){const f=r[1][1];if(f==='S')m.shift=true;else if(f==='C')m.ctrl=true;else if(f==='A')m.alt=true;else m.gui=true;e=r[2].trim();}
+  const a=ALIAS[e];
+  if(a) return {u:a[0],s:a[1]===1||m.shift,ctrl:m.ctrl,alt:m.alt,gui:m.gui,name:e,ch:true,mod:null};
+  return {u:e,s:m.shift,ctrl:m.ctrl,alt:m.alt,gui:m.gui,name:e,ch:false,mod:MODNAME[e]||null};
+}
+function charOf(u,shift,host){
+  if(u.length===1&&u>='A'&&u<='Z') return shift?u:u.toLowerCase();
+  if(u==='SPACE') return ' ';
+  const t=(host==='jis'?JIS:US)[u]; if(!t) return null; return t[shift?1:0]||null;
+}
+function same(a,b){ if(a===b) return true; const bs=['\\','¥']; return bs.includes(a)&&bs.includes(b); }
+
+function stripComments(t){return t.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/[^\n]*/g,' ');}
+function matchBrace(t,open){let d=0;for(let i=open;i<t.length;i++){if(t[i]==='{')d++;else if(t[i]==='}'){d--;if(d===0)return i;}}return t.length;}
+function findNode(t,compat){const p=t.indexOf('"'+compat+'"');if(p<0)return null;const open=t.lastIndexOf('{',p);if(open<0)return null;return t.slice(open+1,matchBrace(t,open));}
+function children(body){const out=[];const re=/(?:([\w\-]+)\s*:\s*)?([A-Za-z_][\w\-]*)\s*\{/g;let m;while((m=re.exec(body))){const open=re.lastIndex-1;const close=matchBrace(body,open);out.push({name:m[2],body:body.slice(open+1,close)});re.lastIndex=close+1;}return out;}
+function propList(body,name){const m=new RegExp('(?:^|[^\\w-])'+name+'\\s*=\\s*([\\s\\S]*?);').exec(body);return m?m[1].replace(/[<>,]/g,' ').trim():null;}
+function propStr(body,name){const m=new RegExp('(?:^|[^\\w-])'+name+'\\s*=\\s*"([^"]*)"').exec(body);return m?m[1]:null;}
+function splitBindings(s){return s.split('&').map(x=>x.trim()).filter(Boolean).map(x=>'&'+x.replace(/\(\s*/g,'(').replace(/\s*\)/g,')').replace(/\s+/g,' '));}
+
+function parseKeymap(text){
+  const t=stripComments(text);
+  const defines={};let d;const dre=/#define\s+(\w+)\s+(\d+)\b/g;while((d=dre.exec(t)))defines[d[1]]=+d[2];
+  const kb=findNode(t,'zmk,keymap');
+  if(kb==null) throw new Error('keymap ノード（compatible = "zmk,keymap"）が見つかりませんでした。');
+  const layers=children(kb).filter(c=>propList(c.body,'bindings')!=null).map(c=>({id:c.name,name:propStr(c.body,'display-name')||propStr(c.body,'label')||c.name,raw:splitBindings(propList(c.body,'bindings'))}));
+  if(!layers.length) throw new Error('レイヤー（bindings = < … >;）が見つかりませんでした。');
+  const combos=[];const cb=findNode(t,'zmk,combos');
+  if(cb!=null)for(const c of children(cb)){const kp=propList(c.body,'key-positions');const b=propList(c.body,'bindings');if(!kp||!b)continue;combos.push({id:c.name,pos:kp.split(/\s+/).map(Number).filter(n=>!isNaN(n)),raw:splitBindings(b)[0]||'',layersRaw:propList(c.body,'layers')});}
+  const cond=[];const cl=findNode(t,'zmk,conditional-layers');
+  if(cl!=null)for(const c of children(cl)){const a=propList(c.body,'if-layers');const b=propList(c.body,'then-layer');if(a&&b)cond.push({id:c.name,ifsRaw:a,thenRaw:b});}
+  return {defines,layers,combos,cond};
+}
+function parseBinding(raw,lidx){
+  const parts=raw.slice(1).trim().split(' ');const beh=parts[0];const p=parts.slice(1);
+  const k={raw,beh,tap:null,holdMod:null,holdLayer:null,trans:false,none:false,other:null,params:p};
+  switch(beh){
+    case 'kp':{const t=resolveKey(p.join(' '));if(t.mod&&!t.s&&!t.ctrl&&!t.alt&&!t.gui)k.holdMod=t.mod;else k.tap=t;break;}
+    case 'mt':k.holdMod=MODNAME[p[0]]||null;k.tap=resolveKey(p.slice(1).join(' '));break;
+    case 'lt':k.holdLayer=lidx(p[0]);k.tap=resolveKey(p.slice(1).join(' '));break;
+    case 'mo':case 'sl':k.holdLayer=lidx(p[0]);break;
+    case 'sk':k.holdMod=MODNAME[p[0]]||null;break;
+    case 'trans':k.trans=true;break;
+    case 'none':k.none=true;break;
+    default:k.other=beh;
+  }
+  return k;
+}
+function buildModel(km){
+  const ids=km.layers.map(l=>l.id.toLowerCase());
+  const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
+  const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null}));
+  const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
+  return {layers,combos,cond};
+}
+function effKey(model,L,i){const k=model.layers[L].keys[i];if(k&&k.trans&&L>0)return model.layers[0].keys[i];return k;}
+function reachPaths(model){
+  const n=model.layers.length;const R=new Array(n).fill(null);R[0]=[];
+  const direct=(from,to,excl)=>{const ks=model.layers[from].keys;for(let i=0;i<ks.length;i++){const k=effKey(model,from,i);if(k&&k.holdLayer===to&&!excl.includes(i))return i;}return -1;};
+  for(let L=1;L<n;L++){const i=direct(0,L,[]);if(i>=0)R[L]=[i];}
+  for(const c of model.cond){if(c.then==null||c.then>=n||R[c.then])continue;const ps=[];let ok=c.ifs.length>0;for(const a of c.ifs){if(!R[a]||!R[a].length){ok=false;break;}ps.push(...R[a]);}if(ok)R[c.then]=[...new Set(ps)];}
+  for(let L=1;L<n;L++){if(R[L])continue;for(let A=1;A<n;A++){if(!R[A]||A===L)continue;const j=direct(A,L,R[A]);if(j>=0){R[L]=[...R[A],j];break;}}}
+  return R;
+}
+function findMod(model,L,mod,excl,side,geo){
+  let best=-1;const ks=model.layers[L].keys;
+  for(let i=0;i<ks.length;i++){if(excl.includes(i))continue;const k=effKey(model,L,i);if(k&&k.holdMod===mod){if(best<0)best=i;if(geo[i]&&side&&geo[i].side!==side){return i;}}}
+  return best;
+}
+function findChar(model,host,geo,c,R){
+  let best=null;const consider=x=>{if(!best||x.cost<best.cost)best=x;};
+  model.layers.forEach((layer,L)=>{
+    const reach=R[L];if(!reach)return;
+    layer.keys.forEach((k,i)=>{
+      if(L>0&&k.trans)return;if(reach.includes(i))return;
+      const t=k.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)return;
+      if(same(charOf(t.u,t.s,host),c))consider({layer:L,target:[i],hold:reach.slice(),mods:[],cost:reach.length*10+L*0.1});
+      else if(!t.s&&same(charOf(t.u,true,host),c)){const sh=findMod(model,L,'shift',[i,...reach],geo[i]&&geo[i].side,geo);if(sh>=0)consider({layer:L,target:[i],hold:reach.slice(),mods:[sh],cost:reach.length*10+25+L*0.1});}
+    });
+  });
+  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(same(charOf(t.u,t.s,host),c))consider({layer:0,target:cb.pos.slice(),hold:[],mods:[],cost:50,combo:true});}
+  return best;
+}
+function findShortcut(model,geo,R,item,mod){
+  const U=item.k.toUpperCase();let best=null;
+  model.layers.forEach((layer,L)=>{const reach=R[L];if(!reach)return;layer.keys.forEach((k,i)=>{if(L>0&&k.trans)return;const t=k.tap;if(!t)return;
+    const flags={ctrl:t.ctrl,gui:t.gui,alt:t.alt};if(t.u!==U||!flags[mod]||t.alt||(mod==='ctrl'?t.gui:t.ctrl)||!!t.s!==!!item.s)return;
+    const c={layer:L,target:[i],hold:reach.slice(),mods:[],cost:L+reach.length,dedicated:true};if(!best||c.cost<best.cost)best=c;});});
+  if(best)return best;
+  const ks=model.layers[0].keys;let li=-1;
+  for(let i=0;i<ks.length;i++){const t=ks[i].tap;if(t&&t.u===U&&!t.s&&!t.ctrl&&!t.gui&&!t.alt){li=i;break;}}
+  if(li<0)return null;
+  const side=geo[li]&&geo[li].side;const m=findMod(model,0,mod,[li],side,geo);if(m<0)return null;
+  const mods=[m];if(item.s){const s=findMod(model,0,'shift',[li,m],side,geo);if(s<0)return null;mods.push(s);}
+  return {layer:0,target:[li],hold:[],mods,cost:0};
+}
+function geometry(n){
+  const ST=[0.45,0.45,0.12,0,0.12,0.24],GAP=1.8,g=[];
+  for(let r=0;r<3;r++){for(let c=0;c<6;c++)g.push({x:c,y:r+ST[c],side:'L',col:c,row:r});for(let j=0;j<6;j++)g.push({x:6+GAP+j,y:r+ST[5-j],side:'R',col:5-j,row:r});}
+  const m=Math.max(0,n-36),nl=Math.floor(m/2),nr=m-nl;
+  for(let k=0;k<nl;k++){const th=k>=nl-3;const x=5.6-(nl-1-k)*1.04;const t=k-(nl-3);g.push({x,y:3.25+(th?t*0.24+0.12:0),rot:th?(t+1)*8:0,side:'L',col:Math.min(5,Math.max(0,Math.round(x))),thumb:th});}
+  for(let k=0;k<nr;k++){const th=k<3;const x=6+GAP+0.4+k*1.04;g.push({x,y:3.25+(th?(2-k)*0.24+0.12:0),rot:th?-(3-k)*8:0,side:'R',col:Math.min(5,Math.max(0,5-Math.round(x-6-GAP))),thumb:th});}
+  return g.slice(0,Math.max(n,0));
+}
+/* Keychron Launcher (VIA/QMK keycodes) import */
+const QK={};
+(function(){
+  for(let i=0;i<26;i++)QK[0x04+i]=LETTERS[i];
+  for(let i=0;i<10;i++)QK[0x1E+i]='N'+'1234567890'[i];
+  const seq=(start,names)=>names.split(' ').forEach((n,i)=>{QK[start+i]=n;});
+  seq(0x28,'ENTER ESC BSPC TAB SPACE MINUS EQUAL LBKT RBKT BSLH NUHS SEMI SQT GRAVE COMMA DOT FSLH CAPS');
+  for(let i=0;i<12;i++)QK[0x3A+i]='F'+(i+1);
+  seq(0x46,'PSCRN SLCK PAUSE_BREAK INS HOME PG_UP DEL END PG_DN RIGHT LEFT DOWN UP KP_NUM KP_SLASH KP_ASTERISK KP_MINUS KP_PLUS KP_ENTER KP_N1 KP_N2 KP_N3 KP_N4 KP_N5 KP_N6 KP_N7 KP_N8 KP_N9 KP_N0 KP_DOT NUBS K_APP');
+  for(let i=0;i<12;i++)QK[0x68+i]='F'+(13+i);
+  seq(0x87,'INT_RO INT_KANA INT_YEN INT_HENKAN INT_MUHENKAN');
+  seq(0x90,'LANG1 LANG2');
+  seq(0xA8,'C_MUTE C_VOL_UP C_VOL_DN C_NEXT C_PREV C_STOP C_PP');
+  seq(0xE0,'LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI');
+})();
+const QMODL=['LCTRL','LSHIFT','LALT','LGUI'],QMODR=['RCTRL','RSHIFT','RALT','RGUI'],QWL=['LC','LS','LA','LG'],QWR=['RC','RS','RA','RG'];
+const hex=v=>'0x'+v.toString(16).toUpperCase();
+function qmkToZmk(v){
+  if(!v)return '&none';
+  if(v===1)return '&trans';
+  if(v<=0xFF){
+    if(v>=0xD1&&v<=0xD5)return '&mkp '+['LCLK','RCLK','MCLK','MB4','MB5'][v-0xD1];
+    if(v>=0xCD&&v<=0xD0)return '&mmv '+['UP','DOWN','LEFT','RIGHT'][v-0xCD];
+    if(v>=0xD9&&v<=0xDC)return '&msc '+['UP','DOWN','LEFT','RIGHT'][v-0xD9];
+    return QK[v]?'&kp '+QK[v]:'&qmk '+hex(v);
+  }
+  const firstMod=m=>{const r=m&0x10;const b=[0,1,2,3].find(b=>m&(1<<b));return (r?QMODR:QMODL)[b==null?0:b];};
+  if(v<=0x1FFF){const kc=v&0xFF,m=(v>>8)&0x1F,r=m&0x10;let s=QK[kc]||hex(kc);for(let b=3;b>=0;b--)if(m&(1<<b))s=(r?QWR:QWL)[b]+'('+s+')';return '&kp '+s;}
+  if(v<=0x3FFF)return '&mt '+firstMod((v>>8)&0x1F)+' '+(QK[v&0xFF]||'NONE');
+  if(v<=0x4FFF)return '&lt '+((v>>8)&0xF)+' '+(QK[v&0xFF]||'NONE');
+  if(v>=0x5200&&v<=0x521F)return '&to '+(v&0x1F);
+  if(v>=0x5220&&v<=0x523F)return '&mo '+(v&0x1F);
+  if(v>=0x5240&&v<=0x525F)return '&to '+(v&0x1F);
+  if(v>=0x5260&&v<=0x527F)return '&tog '+(v&0x1F);
+  if(v>=0x5280&&v<=0x529F)return '&sl '+(v&0x1F);
+  if(v>=0x52A0&&v<=0x52BF)return '&sk '+firstMod(v&0x1F);
+  if(v>=0x52C0&&v<=0x52DF)return '&mo '+(v&0x1F);
+  if(v===0x7C77)return '&mo 1';
+  if(v===0x7C78)return '&mo 2';
+  if(v>=0x7700&&v<=0x777F)return '&macro '+(v-0x7700);
+  if(v===0x7E07)return '&kp LALT';
+  if(v===0x7E09)return '&kp LGUI';
+  if(v>=0x7E00&&v<=0x7E3F)return '&kb '+hex(v);
+  return '&qmk '+hex(v);
+}
+function importLauncher(obj){
+  if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の JSON に keymap 配列が見つかりませんでした。');
+  const maps=obj.keymap.map(l=>new Map(l.map(e=>[e.row+','+e.col,e.val|0])));
+  const matrix=obj.keymap[0].map(e=>({row:e.row,col:e.col})).filter(p=>maps.some(m=>(m.get(p.row+','+p.col)||0)!==0));
+  let layers=maps.map((m,li)=>{const vals=matrix.map(p=>m.get(p.row+','+p.col)||0);return {id:'layer_'+li,name:'L'+li,raw:vals.map(qmkToZmk),vals};});
+  const tri=layers.some(l=>l.vals.some(v=>v===0x7C77||v===0x7C78));
+  let last=layers.length-1;while(last>0&&layers[last].vals.every(v=>v<=1)&&!(tri&&last<=3))last--;
+  layers=layers.slice(0,last+1);
+  const nm=tri?['ベース','Fn1','Fn2','Fn3']:['ベース'];
+  layers.forEach((l,i)=>{if(nm[i])l.name=nm[i];delete l.vals;});
+  return {defines:{},layers,combos:[],cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
+}
+/* Orca echo physical layout, traced from Keychron Launcher (pixel centres, 82px = 1u). Matrix 4×14: left cols 0-6, right cols 7-13. */
+const OE_PX=82;
+const OE_BASE={0:261,1:261,2:240,3:219,4:240,5:248,6:248,7:253,8:253,9:240,10:219,11:240,12:261,13:261};
+const OE_X={0:350,1:432,2:514,3:596,4:678,5:760,6:842,7:1006,8:1088,9:1170,10:1252,11:1334,12:1416,13:1498};
+const OE_FINGER={0:'小指',1:'小指',2:'薬指',3:'中指',4:'人差し指',5:'人差し指',6:'人差し指',7:'人差し指',8:'人差し指',9:'人差し指',10:'中指',11:'薬指',12:'小指',13:'小指'};
+const OE_DECO=[
+  {t:'body',d:'M293 150 L899 150 Q909 150 909 160 L909 470 L878 612 Q875 622 865 620 L690 585 L293 582 Q283 582 283 572 L283 160 Q283 150 293 150 Z'},
+  {t:'body',d:'M948 150 L1555 150 Q1565 150 1565 160 L1565 572 Q1565 582 1555 582 L1180 585 L995 620 Q985 622 982 612 L938 470 L938 160 Q938 150 948 150 Z'},
+  {t:'wheel',x:847,y:512,w:44,h:84,rot:15},
+  {t:'ball',x:1040,y:522,r:33}
+];
+function launcherGeometry(matrix){
+  return matrix.map(({row:r,col:c},n)=>{
+    const side=c<=6?'L':'R';
+    if(OE_X[c]==null)return {x:(n%14),y:9+Math.floor(n/14),side,finger:'',aux:true};
+    let px=OE_X[c],py=OE_BASE[c]+84*r,h=1,rot=0,thumb=false;
+    if(r===0&&(c===6||c===7)){py=c===6?290:295;h=160/74;}
+    if(r===3&&c===5){px=775;py=512;rot=15;}
+    if(r===3&&(c===3||c===4||c===5||c===9||c===10))thumb=true;
+    return {x:px/OE_PX,y:py/OE_PX,h,rot,side,thumb,finger:thumb?'親指':OE_FINGER[c]};
+  });
+}
+/* Romaji */
+const KANA={'あ':['a'],'い':['i','yi'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
+'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
+'さ':['sa'],'し':['shi','si','ci'],'す':['su'],'せ':['se','ce'],'そ':['so'],
+'た':['ta'],'ち':['chi','ti'],'つ':['tsu','tu'],'て':['te'],'と':['to'],
+'な':['na'],'に':['ni'],'ぬ':['nu'],'ね':['ne'],'の':['no'],
+'は':['ha'],'ひ':['hi'],'ふ':['fu','hu'],'へ':['he'],'ほ':['ho'],
+'ま':['ma'],'み':['mi'],'む':['mu'],'め':['me'],'も':['mo'],
+'や':['ya'],'ゆ':['yu'],'よ':['yo'],'ら':['ra'],'り':['ri'],'る':['ru'],'れ':['re'],'ろ':['ro'],
+'わ':['wa'],'を':['wo'],
+'が':['ga'],'ぎ':['gi'],'ぐ':['gu'],'げ':['ge'],'ご':['go'],
+'ざ':['za'],'じ':['ji','zi'],'ず':['zu'],'ぜ':['ze'],'ぞ':['zo'],
+'だ':['da'],'ぢ':['di'],'づ':['du'],'で':['de'],'ど':['do'],
+'ば':['ba'],'び':['bi'],'ぶ':['bu'],'べ':['be'],'ぼ':['bo'],
+'ぱ':['pa'],'ぴ':['pi'],'ぷ':['pu'],'ぺ':['pe'],'ぽ':['po'],
+'ぁ':['xa','la'],'ぃ':['xi','li'],'ぅ':['xu','lu'],'ぇ':['xe','le'],'ぉ':['xo','lo'],
+'ゃ':['xya','lya'],'ゅ':['xyu','lyu'],'ょ':['xyo','lyo'],'っ':['xtu','ltu','xtsu','ltsu'],'ゔ':['vu'],
+'ー':['-'],'、':[','],'。':['.'],'・':['/'],'？':['?'],'！':['!'],'　':[' ']};
+const TWO={};
+(function(){
+  const comp=(a,b)=>KANA[a].flatMap(x=>KANA[b].map(y=>x+y));
+  const YO={'ゃ':'a','ゅ':'u','ょ':'o'};
+  const YB={'き':['ky'],'ぎ':['gy'],'し':['sh','sy'],'じ':['j','jy','zy'],'ち':['ch','ty','cy'],'ぢ':['dy'],'に':['ny'],'ひ':['hy'],'び':['by'],'ぴ':['py'],'み':['my'],'り':['ry']};
+  for(const b in YB)for(const s in YO)TWO[b+s]=[...new Set([...YB[b].map(p=>p+YO[s]),...comp(b,s)])];
+  const SP={'ふぁ':['fa'],'ふぃ':['fi'],'ふぇ':['fe'],'ふぉ':['fo'],'うぃ':['wi','whi'],'うぇ':['we','whe'],'うぉ':['who'],'てぃ':['thi'],'でぃ':['dhi'],
+    'しぇ':['she','sye'],'ちぇ':['che','tye','cye'],'じぇ':['je','zye','jye'],'ゔぁ':['va'],'ゔぃ':['vi'],'ゔぇ':['ve'],'ゔぉ':['vo'],'とぅ':['twu'],'どぅ':['dwu']};
+  for(const k in SP)TWO[k]=[...new Set([...SP[k],...comp(k[0],k[1])])];
+})();
+function tokenizeKana(s){
+  const u=[];let i=0;
+  while(i<s.length){const two=s.substr(i,2);if(TWO[two]){u.push({k:two,o:TWO[two]});i+=2;continue;}
+    const ch=s[i];if(ch==='ん'){u.push({k:ch,o:null});i++;continue;}
+    u.push({k:ch,o:KANA[ch]||[ch]});i++;}
+  for(let j=0;j<u.length;j++){if(u[j].k!=='っ')continue;const nx=u[j+1];if(!nx||!nx.o||nx.k==='っ')continue;
+    const dbl=[];for(const o of nx.o){if(/^[bcdfghjkmpqrstvwxyz]/.test(o)){dbl.push(o[0]+o);if(o.startsWith('ch'))dbl.push('t'+o);}}
+    const sm=KANA['っ'].flatMap(a=>nx.o.map(b=>a+b));u.splice(j,2,{k:'っ'+nx.k,o:[...new Set([...dbl,...sm])]});}
+  for(let j=0;j<u.length;j++){if(u[j].k!=='ん')continue;const nx=u[j+1];
+    const single=!!nx&&nx.k!=='ん'&&!!nx.o&&nx.o.every(o=>!/^[aiueony]/.test(o));u[j].o=single?['n','nn','xn']:['nn','xn'];}
+  return u;
+}
+class RomajiTyper{
+  constructor(kana){this.units=tokenizeKana(kana);this.idx=0;this.buf='';this.typed='';}
+  done(){return this.idx>=this.units.length;}
+  adv(){this.idx++;this.buf='';}
+  input(ch){if(this.done())return false;const u=this.units[this.idx];const nb=this.buf+ch;const c=u.o.filter(o=>o.startsWith(nb));
+    if(c.length){this.buf=nb;this.typed+=ch;if(c.length===1&&c[0]===nb)this.adv();return true;}
+    if(u.o.includes(this.buf)){this.adv();return this.input(ch);}
+    return false;}
+  skip(){if(this.done())return;const u=this.units[this.idx];const o=u.o.find(x=>x.startsWith(this.buf))||u.o[0];this.typed+=o.slice(this.buf.length);this.adv();}
+  rest(){if(this.done())return '';const u=this.units[this.idx];const cur=(u.o.find(o=>o.startsWith(this.buf))||u.o[0]).slice(this.buf.length);
+    if(!cur&&u.o.includes(this.buf)){return this.units.slice(this.idx+1).map(x=>x.o[0]).join('');}
+    return cur+this.units.slice(this.idx+1).map(x=>x.o[0]).join('');}
+}
+/*ENDCORE*/
+
+const SAMPLE=`/* サンプル配列（仮）— 自分の keymap に置き換えてください */
+#define BASE 0
+#define SYM  1
+#define NAV  2
+
+/ {
+  keymap {
+    compatible = "zmk,keymap";
+
+    base_layer {
+      display-name = "BASE";
+      bindings = <
+        &kp TAB    &kp Q &kp W &kp E &kp R &kp T      &kp Y &kp U &kp I     &kp O   &kp P    &kp BSPC
+        &kp LCTRL  &kp A &kp S &kp D &kp F &kp G      &kp H &kp J &kp K     &kp L   &kp SEMI &kp SQT
+        &kp LSHIFT &kp Z &kp X &kp C &kp V &kp B      &kp N &kp M &kp COMMA &kp DOT &kp FSLH &kp RSHIFT
+        &kp ESC &kp LGUI &kp LALT &kp LANG2 &mo SYM &kp SPACE
+        &kp ENTER &mo NAV &kp LANG1 &kp MINUS &kp EQUAL &kp LBKT &kp RBKT
+      >;
+    };
+
+    sym_layer {
+      display-name = "SYM";
+      bindings = <
+        &kp GRAVE &kp N1    &kp N2    &kp N3   &kp N4   &kp N5        &kp N6    &kp N7   &kp N8   &kp N9   &kp N0    &kp BSPC
+        &trans    &kp EXCL  &kp AT    &kp HASH &kp DLLR &kp PRCNT     &kp CARET &kp AMPS &kp STAR &kp LPAR &kp RPAR  &kp PIPE
+        &trans    &kp MINUS &kp EQUAL &kp LBKT &kp RBKT &kp BSLH      &kp UNDER &kp PLUS &kp LBRC &kp RBRC &kp TILDE &trans
+        &trans &trans &trans &trans &trans &trans
+        &trans &trans &trans &trans &trans &trans &trans
+      >;
+    };
+
+    nav_layer {
+      display-name = "NAV";
+      bindings = <
+        &kp ESC &kp F1    &kp F2    &kp F3    &kp F4    &kp F5        &kp PG_UP &kp HOME &kp UP      &kp END     &kp LC(Z) &kp DEL
+        &trans  &kp LC(A) &kp LC(S) &kp LC(F) &kp LC(C) &kp LC(V)     &kp PG_DN &kp LEFT &kp DOWN    &kp RIGHT   &kp LC(X) &trans
+        &trans  &kp F6    &kp F7    &kp F8    &kp F9    &kp F10       &kp F11   &kp F12  &kp C_VOL_DN &kp C_VOL_UP &kp C_MUTE &trans
+        &trans &trans &trans &trans &trans &trans
+        &trans &trans &trans &trans &trans &trans &trans
+      >;
+    };
+  };
+};
+`;
+
+const DEFAULT_KM="{\"id\":875824269,\"keymap\":[[{\"col\":0,\"row\":0,\"val\":41},{\"col\":1,\"row\":0,\"val\":20},{\"col\":2,\"row\":0,\"val\":26},{\"col\":3,\"row\":0,\"val\":8},{\"col\":4,\"row\":0,\"val\":21},{\"col\":5,\"row\":0,\"val\":23},{\"col\":6,\"row\":0,\"val\":209},{\"col\":7,\"row\":0,\"val\":209},{\"col\":8,\"row\":0,\"val\":28},{\"col\":9,\"row\":0,\"val\":24},{\"col\":10,\"row\":0,\"val\":12},{\"col\":11,\"row\":0,\"val\":18},{\"col\":12,\"row\":0,\"val\":19},{\"col\":13,\"row\":0,\"val\":45},{\"col\":0,\"row\":1,\"val\":43},{\"col\":1,\"row\":1,\"val\":4},{\"col\":2,\"row\":1,\"val\":22},{\"col\":3,\"row\":1,\"val\":7},{\"col\":4,\"row\":1,\"val\":9},{\"col\":5,\"row\":1,\"val\":10},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":11},{\"col\":9,\"row\":1,\"val\":13},{\"col\":10,\"row\":1,\"val\":14},{\"col\":11,\"row\":1,\"val\":15},{\"col\":12,\"row\":1,\"val\":51},{\"col\":13,\"row\":1,\"val\":40},{\"col\":0,\"row\":2,\"val\":225},{\"col\":1,\"row\":2,\"val\":29},{\"col\":2,\"row\":2,\"val\":27},{\"col\":3,\"row\":2,\"val\":6},{\"col\":4,\"row\":2,\"val\":25},{\"col\":5,\"row\":2,\"val\":5},{\"col\":6,\"row\":2,\"val\":31864},{\"col\":7,\"row\":2,\"val\":5},{\"col\":8,\"row\":2,\"val\":17},{\"col\":9,\"row\":2,\"val\":16},{\"col\":10,\"row\":2,\"val\":54},{\"col\":11,\"row\":2,\"val\":55},{\"col\":12,\"row\":2,\"val\":550},{\"col\":13,\"row\":2,\"val\":551},{\"col\":0,\"row\":3,\"val\":224},{\"col\":1,\"row\":3,\"val\":32263},{\"col\":2,\"row\":3,\"val\":32265},{\"col\":3,\"row\":3,\"val\":145},{\"col\":4,\"row\":3,\"val\":31863},{\"col\":5,\"row\":3,\"val\":44},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":42},{\"col\":10,\"row\":3,\"val\":144},{\"col\":11,\"row\":3,\"val\":30465},{\"col\":12,\"row\":3,\"val\":30466},{\"col\":13,\"row\":3,\"val\":30467}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":82},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":211},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":36},{\"col\":12,\"row\":0,\"val\":37},{\"col\":13,\"row\":0,\"val\":38},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":80},{\"col\":3,\"row\":1,\"val\":81},{\"col\":4,\"row\":1,\"val\":79},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":209},{\"col\":10,\"row\":1,\"val\":210},{\"col\":11,\"row\":1,\"val\":33},{\"col\":12,\"row\":1,\"val\":34},{\"col\":13,\"row\":1,\"val\":35},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":30},{\"col\":12,\"row\":2,\"val\":31},{\"col\":13,\"row\":2,\"val\":32},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":39},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":548},{\"col\":12,\"row\":0,\"val\":549},{\"col\":13,\"row\":0,\"val\":568},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":545},{\"col\":12,\"row\":1,\"val\":546},{\"col\":13,\"row\":1,\"val\":547},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":542},{\"col\":12,\"row\":2,\"val\":543},{\"col\":13,\"row\":2,\"val\":544},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":47},{\"col\":13,\"row\":2,\"val\":48},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}]],\"version\":\"1.0.0\",\"MD5\":\"0443fd6862970bcc2ad77839597cda63\",\"knob\":[{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"}]}";
+const SETS={
+romaji:[["今日はいい天気ですね","きょうはいいてんきですね"],["分割キーボードに慣れてきた","ぶんかつきーぼーどになれてきた"],["親指でスペースを押す","おやゆびですぺーすをおす"],
+["トラックボールが便利","とらっくぼーるがべんり"],["名古屋で打鍵会を開く","なごやでだけんかいをひらく"],["レイヤーを切り替えて記号を打つ","れいやーをきりかえてきごうをうつ"],
+["ファームウェアを書き込む","ふぁーむうぇあをかきこむ"],["ちょっと休憩しよう","ちょっときゅうけいしよう"],["新しいキーキャップを注文した","あたらしいきーきゃっぷをちゅうもんした"],
+["カラムスタッガードは指にやさしい","からむすたっがーどはゆびにやさしい"],["今週末は自作キーボードを組む","こんしゅうまつはじさくきーぼーどをくむ"],["半田付けの温度を確認する","はんだづけのおんどをかくにんする"],
+["コーヒーを飲みながら作業する","こーひーをのみながらさぎょうする"],["静かなリニアスイッチが好き","しずかなりにあすいっちがすき"],["配列を毎日少しずつ育てる","はいれつをまいにちすこしずつそだてる"],
+["夕方から雨が降るらしい","ゆうがたからあめがふるらしい"],["会議の資料をまとめておく","かいぎのしりょうをまとめておく"],["まずはホームポジションから","まずはほーむぽじしょんから"],
+["小指の負担が減った気がする","こゆびのふたんがへったきがする"],["ゆっくり正確に打とう","ゆっくりせいかくにうとう"]],
+en:["the quick brown fox jumps over the lazy dog","split keyboards reward patience","hold the layer key with your thumb","practice slowly and stay relaxed",
+"column stagger fits the length of each finger","small layouts make every key count","keep your wrists straight and calm","accuracy first and speed will follow",
+"Orca echo has forty nine keys","the trackball sits under your right thumb","type the word and check the result","muscle memory takes about two weeks",
+"rest your hands between long sessions","a good keymap grows a little every day"],
+sym:["3.14 + 2.71 = 5.85","(a + b) * 2","user@example.com","50% off!","#tag & $9.99","x[0] = {1, 2};","a <= b && c >= d","~/zmk-config/",
+"\"double\" and 'single'","a_b-c | d^e","100 - 25 = 75","2026/11/05 13:26","v1.2.3-beta","1,024 / 8 = 128","`code` ?","if (!ok) return;"],
+code:["uint8_t buf[8] = {0};","if (ret != E_OK) { return ret; }","for (int i = 0; i < n; i++) {","#define CAN_ID_ENG 0x7E0U","static void NvM_Init(void);",
+"const ids = layers.map((l) => l.id);","git commit -m \"fix encoder\"","&kp LS(N1) &mo 1 &trans","printf(\"%d\\n\", count);","while (*p != '\\0') { p++; }",
+"return (x >> 4) & 0x0Fu;","node->next = NULL;","ls -la ~/zmk-config/","arr[i] = (a + b) * 2;"],
+shortcut:[{l:'コピー',k:'c'},{l:'貼り付け',k:'v'},{l:'切り取り',k:'x'},{l:'元に戻す',k:'z'},{l:'やり直し',k:'z',s:true},{l:'すべて選択',k:'a'},
+{l:'保存',k:'s'},{l:'検索',k:'f'},{l:'太字',k:'b'},{l:'斜体',k:'i'},{l:'リンクを挿入',k:'k'}]
+};
+const MODE_LABEL={romaji:'日本語ローマ字',en:'英語',sym:'数字・記号',code:'コード',shortcut:'ショートカット',mix:'ミックス'};
+const FINGER=['小指','小指','薬指','中指','人差し指','人差し指'];
+
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem('oet:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('oet:'+k,JSON.stringify(v));}catch(e){}}};
+const S={text:(()=>{const t=store.get('keymap',null);return (!t||t===SAMPLE)?DEFAULT_KM:t;})(),ovr:store.get('ovr',{}),host:store.get('host','jis'),mod:store.get('mod','gui'),mode:store.get('mode','romaji'),
+  km:null,model:null,geo:[],R:[],view:null,edit:false,editPos:null,keyEls:[],
+  item:null,typer:null,pos:0,srcIdx:-1,lock:false,im:'romaji',started:false,t0:0,
+  correct:0,miss:0,activeMs:0,last:0,done:0,weak:{}};
+
+/* keymap loading */
+function loadKeymap(text,msg,fresh){
+  try{
+    const isJson=text.trim().startsWith('{');
+    let km;
+    if(isJson){let obj;try{obj=JSON.parse(text);}catch(e){throw new Error('JSON として読めませんでした。Launcher で書き出したファイルをそのまま貼ってください。');}km=importLauncher(obj);}
+    else km=parseKeymap(text);
+    if(fresh){S.ovr={};store.set('ovr',{});}
+    if(km.src==='launcher')for(const key in S.ovr){const [L,i]=key.split(':').map(Number);if(km.layers[L]&&i<km.layers[L].raw.length)km.layers[L].raw[i]=S.ovr[key];}
+    const model=buildModel(km);
+    S.km=km;S.model=model;S.text=text;store.set('keymap',text);
+    const n=Math.max(...km.layers.map(l=>l.raw.length));
+    S.geo=km.matrix?launcherGeometry(km.matrix):geometry(n);S.R=reachPaths(model);S.view=null;S.editPos=null;
+    buildKeyboard();
+    const st=$('#km-status');st.className='status ok';
+    st.textContent=msg||(km.src==='launcher'?'Keychron Launcher の':'ZMK の')+`キーマップを読み込みました（${km.layers.length}レイヤー・${n}キー：${km.layers.map(l=>l.name).join('・')}）`+(km.combos.length?`、コンボ${km.combos.length}件`:'')+(km.cond.length?'、tri-layer あり':'');
+    const bad=km.layers.filter(l=>l.raw.length!==n);if(bad.length){st.className='status err';st.textContent+=`。キー数が揃っていないレイヤーがあります: ${bad.map(l=>l.name).join('、')}`;}
+    $('#km').value=text;
+    renderAll();return true;
+  }catch(e){const st=$('#km-status');st.className='status err';st.textContent=e.message;return false;}
+}
+function serialize(){
+  const km=S.km;let s='';
+  for(const k in km.defines)s+=`#define ${k} ${km.defines[k]}\n`;
+  s+='\n/ {\n';
+  if(km.combos.length){s+='  combos {\n    compatible = "zmk,combos";\n';for(const c of km.combos){s+=`    ${c.id} {\n      key-positions = <${c.pos.join(' ')}>;\n      bindings = <${c.raw}>;\n`+(c.layersRaw?`      layers = <${c.layersRaw}>;\n`:'')+'    };\n';}s+='  };\n\n';}
+  if(km.cond.length){s+='  conditional_layers {\n    compatible = "zmk,conditional-layers";\n';for(const c of km.cond)s+=`    ${c.id} {\n      if-layers = <${c.ifsRaw}>;\n      then-layer = <${c.thenRaw}>;\n    };\n`;s+='  };\n\n';}
+  s+='  keymap {\n    compatible = "zmk,keymap";\n';
+  for(const l of km.layers){const rows=[];for(let i=0;i<l.raw.length;i+=12)rows.push('        '+l.raw.slice(i,i+12).join(' '));
+    s+=`\n    ${l.id} {\n      display-name = "${l.name}";\n      bindings = <\n${rows.join('\n')}\n      >;\n    };\n`;}
+  s+='  };\n};\n';return s;
+}
+
+/* labels */
+function tapLabel(t){
+  let base;
+  if(t.ch){const c=charOf(t.u,t.s,S.host);base=c==null?(t.u==='GRAVE'&&S.host==='jis'?'半/全':t.u):(c===' '?'Space':(/[a-z]/.test(c)&&c.length===1?c.toUpperCase():c));}
+  else if(t.mod)base=MODLABEL[t.mod];
+  else if(/^F\d+$/.test(t.u))base=t.u;
+  else base=NONCHAR[t.u]||t.u.replace(/^C_/,'');
+  return (t.ctrl?(S.mod==='gui'?'Ctrl+':'^'):'')+(t.gui?'⌘':'')+(t.alt?'⌥':'')+base;
+}
+function lname(L){const l=S.model.layers[L];return l?l.name:'L'+L;}
+function labelOf(k){
+  if(!k)return{m:'',s:''};
+  if(k.none)return{m:'·',s:''};
+  switch(k.beh){
+    case 'kp':return k.holdMod?{m:MODLABEL[k.holdMod],s:''}:{m:tapLabel(k.tap),s:''};
+    case 'mt':return{m:tapLabel(k.tap),s:k.holdMod?MODLABEL[k.holdMod]:''};
+    case 'lt':return{m:tapLabel(k.tap),s:lname(k.holdLayer)};
+    case 'mo':return{m:lname(k.holdLayer),s:'hold'};
+    case 'sl':return{m:lname(k.holdLayer),s:'sticky'};
+    case 'sk':return{m:k.holdMod?MODLABEL[k.holdMod]:'sk',s:'sticky'};
+    case 'to':case 'tog':return{m:(k.params[0]!=null?lname(+k.params[0])||k.params[0]:''),s:k.beh};
+    case 'bt':return{m:'BT',s:(k.params||[]).join(' ').replace('BT_','').toLowerCase()};
+    case 'mkp':return{m:{LCLK:'Click',RCLK:'R-Clk',MCLK:'M-Clk'}[k.params[0]]||'Mouse',s:''};
+    case 'msc':return{m:'Scroll',s:(k.params[0]||'').toLowerCase()};
+    case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
+    case 'macro':return{m:'M'+(k.params[0]||''),s:'macro'};
+    case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'qmk':return{m:'?',s:(k.params[0]||'')};
+    default:return{m:k.beh,s:''};
+  }
+}
+
+/* keyboard svg */
+const U=58,KW=52,NS='http://www.w3.org/2000/svg';
+function buildKeyboard(){
+  const svg=$('#kb');svg.innerHTML='';S.keyEls=[];
+  const g=S.geo;if(!g.length)return;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of g){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y-(p.h||1)/2+0.5);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y+(p.h||1)/2-0.5);}
+  let pad=U*0.75;
+  const deco=S.km&&S.km.matrix?OE_DECO:null;
+  if(deco){const k=U/OE_PX;x0=283/OE_PX;y0=150/OE_PX;x1=1565/OE_PX;y1=622/OE_PX;pad=U*0.2;
+    const dg=document.createElementNS(NS,'g');dg.setAttribute('transform',`scale(${k})`);
+    dg.innerHTML=deco.map(d=>d.t==='body'?`<path class="body" d="${d.d}"/>`:
+      d.t==='ball'?`<circle class="ball" cx="${d.x}" cy="${d.y}" r="${d.r}"/><circle class="ball-hl" cx="${d.x-9}" cy="${d.y-10}" r="${d.r*0.32}"/>`:
+      `<g transform="translate(${d.x} ${d.y}) rotate(${d.rot})"><rect class="wheel" x="${-d.w/2}" y="${-d.h/2}" width="${d.w}" height="${d.h}" rx="9"/>${[-24,-12,0,12,24].map(y=>`<line class="wheel-l" x1="${-d.w/2+8}" x2="${d.w/2-8}" y1="${y}" y2="${y}"/>`).join('')}</g>`).join('');
+    svg.appendChild(dg);}
+  svg.setAttribute('viewBox',deco?`${x0*U-pad} ${y0*U-pad} ${(x1-x0)*U+pad*2} ${(y1-y0)*U+pad*2}`:`${x0*U-pad} ${y0*U-pad} ${(x1-x0)*U+pad*2} ${(y1-y0)*U+pad*2}`);
+  g.forEach((p,i)=>{
+    const grp=document.createElementNS(NS,'g');
+    grp.setAttribute('class','key'+(p.thumb?' thumb':''));
+    grp.setAttribute('transform',`translate(${(p.x*U).toFixed(1)} ${(p.y*U).toFixed(1)}) rotate(${p.rot||0})`);
+    const w=KW/2,H=KW*(p.h||1)+(p.h>1?(p.h-1)*0:0),hh=H/2;
+    grp.innerHTML=`<rect class="sonar" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><rect class="cap" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><text class="m" y="5"></text><text class="s" y="19"></text>`;
+    grp.addEventListener('click',()=>onKeyClick(i));
+    svg.appendChild(grp);
+    S.keyEls.push({g:grp,m:grp.querySelector('.m'),s:grp.querySelector('.s')});
+  });
+}
+function updateKeyboard(viewL,guide){
+  const m=S.model;if(!m)return;
+  const tgt=new Set(guide&&!guide.missing?guide.target:[]),hold=new Set(guide&&!guide.missing?guide.hold:[]),mods=new Set(guide&&!guide.missing?guide.mods:[]);
+  $('#kbwrap').classList.toggle('editing',S.edit);
+  S.keyEls.forEach((el,i)=>{
+    const k=m.layers[viewL].keys[i];
+    const trans=!!(k&&k.trans&&viewL>0);
+    const lab=labelOf(trans?m.layers[0].keys[i]:k);
+    el.m.textContent=lab.m;el.s.textContent=trans?'':lab.s;
+    const len=[...lab.m].length;el.m.setAttribute('font-size',len<=1?18:len<=2?15:len<=4?12:10);
+    el.m.setAttribute('y',lab.s&&!trans?1:5);
+    let c='key'+(S.geo[i]&&S.geo[i].thumb?' thumb':'')+(S.geo[i]&&S.geo[i].aux?' aux':'');
+    if(trans)c+=' trans';if(k&&k.none)c+=' none';
+    if(tgt.has(i))c+=' is-target';else if(hold.has(i))c+=' is-hold';else if(mods.has(i))c+=' is-mod';
+    if(S.edit&&S.editPos===i)c+=' sel';
+    el.g.setAttribute('class',c);
+  });
+}
+function flashMiss(guide){
+  if(!guide||guide.missing)return;
+  for(const i of guide.target){const el=S.keyEls[i];if(!el)continue;el.g.classList.remove('missf');void el.g.getBBox();el.g.classList.add('missf');}
+}
+
+/* practice */
+function newItem(){
+  S.im=S.mode==='mix'?['romaji','romaji','en','sym'][Math.floor(Math.random()*4)]:S.mode;
+  const list=SETS[S.im];let r;do{r=Math.floor(Math.random()*list.length);}while(list.length>1&&r===S.srcIdx);
+  S.srcIdx=r;S.item=list[r];S.pos=0;S.lock=false;
+  S.typer=S.im==='romaji'?new RomajiTyper(S.item[1]):null;
+  renderAll();
+}
+function expected(){
+  if(!S.item)return null;
+  if(S.im==='romaji'){const r=S.typer.rest();return r?r[0]:null;}
+  if(S.im==='shortcut')return null;
+  return S.pos<S.item.length?S.item[S.pos]:null;
+}
+function finished(){return S.im==='romaji'?S.typer.done():S.pos>=S.item.length;}
+function computeGuide(){
+  if(!S.model||!S.item)return null;
+  if(!S.started){const g=findChar(S.model,S.host,S.geo,' ',S.R);return g?Object.assign({ch:' ',start:true},g):null;}
+  if(S.im==='shortcut'){const g=findShortcut(S.model,S.geo,S.R,S.item,S.mod);return g?g:{missing:true};}
+  const ch=expected();if(ch==null)return null;
+  const g=findChar(S.model,S.host,S.geo,ch,S.R);return g?Object.assign({ch},g):{ch,missing:true};
+}
+function tick(){const now=performance.now();if(S.last)S.activeMs+=Math.min(now-S.last,2000);S.last=now;}
+function typeChar(k){
+  if(S.lock)return;tick();
+  const exp=expected();if(exp==null)return;
+  const g=computeGuide();
+  let ok;
+  if(S.im==='romaji')ok=S.typer.input(/^[A-Z]$/.test(k)?k.toLowerCase():k);
+  else ok=same(k,exp);
+  if(ok){S.correct++;if(S.im!=='romaji')S.pos++;
+    if(finished()){S.done++;okFlash();newItem();return;}}
+  else{S.miss++;S.weak[exp]=(S.weak[exp]||0)+1;}
+  renderAll();if(!ok)flashMiss(g);
+}
+function skip(){
+  if(S.lock||!S.item)return;
+  if(S.im==='shortcut'){newItem();return;}
+  if(S.im==='romaji')S.typer.skip();else S.pos++;
+  if(finished()){newItem();return;}
+  renderAll();
+}
+function okFlash(){const p=$('#prompt');p.classList.remove('flash-ok');void p.offsetWidth;p.classList.add('flash-ok');}
+function handleShortcut(e){
+  if(['Shift','Control','Meta','Alt','CapsLock'].includes(e.key))return;
+  if(e.key==='Escape'){e.preventDefault();skip();return;}
+  if(S.lock)return;
+  const it=S.item;
+  if(!e.ctrlKey&&!e.metaKey){if(e.key.length===1){e.preventDefault();tick();S.miss++;S.weak[(S.mod==='ctrl'?'Ctrl+':'Cmd+')+it.k.toUpperCase()]=(S.weak[(S.mod==='ctrl'?'Ctrl+':'Cmd+')+it.k.toUpperCase()]||0)+1;const g=computeGuide();renderAll();flashMiss(g);}return;}
+  e.preventDefault();tick();
+  const modOk=S.mod==='ctrl'?(e.ctrlKey&&!e.metaKey):(e.metaKey&&!e.ctrlKey);
+  const ok=modOk&&e.key.toLowerCase()===it.k&&(!!it.s===e.shiftKey);
+  if(ok){S.correct++;S.done++;S.lock=true;okFlash();renderAll();$('#p-line').innerHTML+='<span style="color:var(--ok)"> ✓</span>';setTimeout(newItem,380);}
+  else{S.miss++;const key=(S.mod==='ctrl'?'Ctrl+':'Cmd+')+(it.s?'⇧':'')+it.k.toUpperCase();S.weak[key]=(S.weak[key]||0)+1;const g=computeGuide();renderAll();flashMiss(g);}
+}
+
+/* rendering */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function where(i){const p=S.geo[i];if(!p)return '';return (p.side==='L'?'左':'右')+(p.finger!=null?p.finger:(p.thumb?'親指':FINGER[p.col]));}
+function keyText(L,i){const m=S.model;let k=effKey(m,L,i);if(!k)return '?';return labelOf(k).m||'?';}
+function holdText(i){const m=S.model;for(let L=0;L<m.layers.length;L++){const k=effKey(m,L,i);if(k&&k.holdLayer!=null)return lname(k.holdLayer);}return keyText(0,i);}
+function renderHint(g){
+  const h=$('#hint');
+  if(!S.model){h.innerHTML='';return;}
+  if(!S.started){h.innerHTML=(g&&!g.missing?`${where(g.target[0])} <kbd class="t">${esc(keyText(g.layer,g.target[0]))}</kbd> <span class="startcue">を押して練習開始</span>`:'<span class="startcue">Space キーで練習を始めます</span>')+'<span class="plus">　練習中は Esc で1文字スキップ</span>';return;}
+  if(!g){h.innerHTML='';return;}
+  if(g.missing){h.innerHTML=`<span class="warn">${S.im==='shortcut'?'このショートカットに使えるキーが':'「'+esc(g.ch===' '?'Space':g.ch)+'」を出すキーが'}今のキーマップに見つかりません。</span><span class="plus">Esc でスキップ</span>`;return;}
+  const parts=[];
+  for(const i of g.hold)parts.push(`${where(i)} <kbd class="h">${esc(holdText(i))}</kbd>`);
+  for(const i of g.mods)parts.push(`${where(i)} <kbd class="m">${esc(keyText(0,i))}</kbd>`);
+  const tg=g.target.map(i=>`${where(i)} <kbd class="t">${esc(keyText(g.layer,i))}</kbd>`).join(' <span class="plus">と</span> ');
+  let html='';
+  if(parts.length)html+=parts.join(' <span class="plus">＋</span> ')+' <span class="plus">を押しながら →</span> ';
+  html+=tg+(g.combo?' <span class="plus">（コンボで同時押し）</span>':'');
+  if(g.dedicated)html+=' <span class="plus">（専用キー）</span>';
+  h.innerHTML=html;
+}
+function renderPrompt(){
+  $('#p-mode').textContent=MODE_LABEL[S.mode]+(S.mode==='mix'?' · '+MODE_LABEL[S.im]:'');
+  $('#p-count').textContent=`${S.done} 問完了`;
+  const main=$('#p-main'),kana=$('#p-kana'),line=$('#p-line');
+  if(!S.item){main.textContent='';kana.textContent='';line.textContent='';return;}
+  if(S.im==='romaji'){
+    const t=S.typer;main.textContent=S.item[0];
+    const done=t.units.slice(0,t.idx).map(u=>u.k).join('');const cur=t.done()?'':t.units[t.idx].k;const rest=t.units.slice(t.idx+1).map(u=>u.k).join('');
+    kana.innerHTML=`<span class="done">${esc(done)}</span><span class="k-cur">${esc(cur)}</span>${esc(rest)}`;
+    const r=t.rest();line.innerHTML=`<span class="done">${esc(t.typed)}</span>`+(r?`<span class="cur">${esc(r[0])}</span>${esc(r.slice(1))}`:'');
+    kana.hidden=false;
+  }else if(S.im==='shortcut'){
+    main.textContent=S.item.l;kana.hidden=true;
+    line.textContent=(S.mod==='ctrl'?'Ctrl':'Cmd')+(S.item.s?' + Shift':'')+' + '+S.item.k.toUpperCase();
+  }else{
+    main.textContent='';kana.hidden=true;
+    const s=S.item,p=S.pos;const c=s[p];
+    line.innerHTML=`<span class="done">${esc(s.slice(0,p))}</span>`+(c!=null?`<span class="cur${c===' '?' sp':''}">${c===' '?'':esc(c)}</span>${esc(s.slice(p+1))}`:'');
+  }
+  main.hidden=S.im!=='romaji'&&S.im!=='shortcut';
+}
+function renderChips(g){
+  const m=S.model;const box=$('#chips');if(!m){box.innerHTML='';return;}
+  const auto=g&&!g.missing?g.layer:0;const viewL=S.view!=null?S.view:auto;
+  const need=new Set();if(g&&!g.missing&&g.layer>0)need.add(g.layer);
+  box.innerHTML=m.layers.map((l,i)=>`<button class="chip${i===viewL?' on':''}${need.has(i)?' need':''}" data-l="${i}">${esc(l.name)}</button>`).join('')+
+    (S.view!=null?'<button class="chip auto" data-l="auto">自動で切替</button>':'');
+  return viewL;
+}
+function renderStats(){
+  const el=S.started?performance.now()-S.t0:0,mins=el/60000;
+  $('#s-wpm').innerHTML=`${mins>0.02?Math.round(S.correct/5/mins):0}<span class="unit">WPM</span>`;
+  const sec=Math.floor(el/1000);$('#s-time').textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
+  const tot=S.correct+S.miss;$('#s-acc').innerHTML=tot?`${(S.correct/tot*100).toFixed(1)}<span class="unit">%</span>`:'—';
+  $('#s-miss').textContent=S.miss;
+  const top=Object.entries(S.weak).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  $('#weak').innerHTML=top.length?'苦手なキー '+top.map(([c,n])=>`<b>${esc(c===' '?'Space':c)}<small>${n}</small></b>`).join(''):'';
+}
+function renderSrc(){
+  const def=S.text===DEFAULT_KM,edited=Object.keys(S.ovr).length&&S.km&&S.km.src==='launcher';
+  $('#kmsrc').innerHTML=(def?'11/5 に書き出したキーマップで表示中':(S.km&&S.km.src==='launcher'?'Launcher のキーマップで表示中':'ZMK keymap で表示中'))+(edited?'（一部編集済み）':'')+' <button id="open-set">キーマップを変更</button>';
+}
+function renderAll(){
+  MODLABEL.alt=S.mod==='gui'?'Opt':'Alt';MODLABEL.gui=S.mod==='gui'?'Cmd':'Win';
+  const g=computeGuide();
+  renderPrompt();renderHint(g);renderNext();
+  const viewL=renderChips(g);
+  updateKeyboard(viewL==null?0:viewL,S.view!=null&&g&&!g.missing&&S.view!==g.layer?Object.assign({},g,{target:[]}):g);
+  if(S.view!=null&&g&&!g.missing&&S.view===g.layer)updateKeyboard(viewL,g);
+  renderStats();renderSrc();
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
+  document.querySelectorAll('button[data-host]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.host===S.host));
+  document.querySelectorAll('#modsel button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mod===S.mod));
+  $('#km-edit').classList.toggle('on',S.edit);
+}
+
+function upcoming(){if(!S.item||S.im==='shortcut')return [];if(S.im==='romaji')return [...S.typer.rest().slice(0,10)];return [...S.item.slice(S.pos,S.pos+10)];}
+function renderNext(){
+  const box=$('#nextkeys');if(!S.model||!S.started){box.innerHTML='';return;}
+  box.innerHTML=upcoming().map((c,i)=>{const g=findChar(S.model,S.host,S.geo,c,S.R);
+    if(!g)return `<li class="na${i?'':' first'}"><b>${esc(c===' '?'␣':c)}</b><span>なし</span></li>`;
+    const pre=g.hold.map(holdText).concat(g.mods.length?['⇧']:[]);
+    return `<li class="${i?'':'first'}${pre.length?' lay':''}"><b>${esc(c===' '?'␣':c)}</b><span>${esc((pre.length?pre.join('+')+'+':'')+keyText(g.layer,g.target[0]))}</span></li>`;}).join('');
+}
+function startPractice(){S.started=true;S.t0=performance.now();S.correct=0;S.miss=0;S.activeMs=0;S.last=0;S.done=0;S.weak={};renderAll();}
+
+/* editing */
+function onKeyClick(i){
+  if(!S.edit)return;
+  const L=S.view!=null?S.view:0;S.editPos=i;
+  $('#editor').hidden=false;$('#ed-where').textContent=`${lname(L)} / キー #${i}（${where(i)}）`;
+  const inp=$('#ed-input');inp.value=S.km.layers[L].raw[i]||'';inp.focus();inp.select();
+  renderAll();
+}
+function applyEdit(){
+  if(S.editPos==null)return;const L=S.view!=null?S.view:0;const v=$('#ed-input').value.trim();
+  if(!v.startsWith('&')){$('#ed-where').textContent='「&kp A」のように & から書いてください';return;}
+  const keep=S.view,pos=S.editPos;const b=splitBindings(v)[0];
+  let ok;
+  if(S.km.src==='launcher'){S.ovr[L+':'+pos]=b;store.set('ovr',S.ovr);ok=loadKeymap(S.text,'キーを書き換えました（このブラウザ内だけの変更です。実機には Launcher で反映してください）。');}
+  else{S.km.layers[L].raw[pos]=b;ok=loadKeymap(serialize(),'キーを書き換えました。下の欄の内容を zmk-config に反映できます。');}
+  if(ok){S.view=keep;S.editPos=pos;renderAll();}
+}
+
+/* events */
+document.addEventListener('keydown',e=>{
+  const tg=e.target;if(tg&&(tg.tagName==='TEXTAREA'||tg.tagName==='INPUT'||tg.tagName==='SELECT'))return;
+  if(e.isComposing||e.key==='Process'||e.keyCode===229){$('#ime').hidden=false;return;}
+  if(!S.started){if(e.key===' '&&!e.ctrlKey&&!e.metaKey){e.preventDefault();startPractice();}return;}
+  if(S.im==='shortcut'){handleShortcut(e);return;}
+  if(e.ctrlKey||e.metaKey)return;
+  if(e.key==='Escape'){e.preventDefault();skip();return;}
+  if(e.key.length!==1)return;
+  e.preventDefault();
+  if(/[\u3000-\u30ff\uff00-\uff5e]/.test(e.key)){$('#ime').hidden=false;return;}
+  $('#ime').hidden=true;
+  typeChar(e.key);
+});
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mode=b.dataset.mode;store.set('mode',S.mode);S.view=null;S.started=false;b.blur();newItem();});
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const l=b.dataset.l;S.view=l==='auto'?null:(S.view===+l?null:+l);b.blur();renderAll();});
+for(const id of ['#host','#host2'])$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-host]');if(!b)return;S.host=b.dataset.host;store.set('host',S.host);b.blur();renderAll();});
+$('#modsel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mod=b.dataset.mod;store.set('mod',S.mod);b.blur();renderAll();});
+$('#kmsrc').addEventListener('click',e=>{if(e.target.id!=='open-set')return;const d=$('#settings');d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'});});
+$('#km-load').addEventListener('click',e=>{e.currentTarget.blur();loadKeymap($('#km').value,null,true);});
+$('#km-sample').addEventListener('click',e=>{e.currentTarget.blur();loadKeymap(DEFAULT_KM,null,true);});
+$('#km-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#km').value=r.result;loadKeymap(r.result,null,true);};r.readAsText(f);e.target.value='';});
+$('#km-edit').addEventListener('click',e=>{S.edit=!S.edit;e.currentTarget.blur();if(!S.edit){$('#editor').hidden=true;S.editPos=null;}else{$('#ed-where').textContent='編集したいキーをクリックしてください（レイヤーは上のボタンで切替）';$('#editor').hidden=false;}renderAll();});
+$('#ed-apply').addEventListener('click',applyEdit);
+$('#ed-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyEdit();}if(e.key==='Escape'){e.preventDefault();e.target.blur();}});
+$('#ed-close').addEventListener('click',()=>{S.edit=false;S.editPos=null;$('#editor').hidden=true;renderAll();});
+window.addEventListener('blur',()=>{$('#focusnote').hidden=false;});
+window.addEventListener('focus',()=>{$('#focusnote').hidden=true;});
+document.addEventListener('pointerdown',()=>{$('#focusnote').hidden=true;});
+setInterval(renderStats,1000);
+
+if(!loadKeymap(S.text))loadKeymap(DEFAULT_KM,null,true);
+newItem();
+</script>
+
+</body>
+</html>
