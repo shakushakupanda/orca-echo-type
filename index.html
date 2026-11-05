@@ -50,6 +50,10 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .toplink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--key-edge);border-radius:999px;padding:5px 14px;background:var(--surface)}
 .toplink:hover{border-color:var(--muted)}
 .srclink{color:var(--accent);margin-left:6px}
+.emutog{font:inherit;font-size:12px;border:1px solid var(--key-edge);background:var(--surface-2);color:var(--muted);border-radius:999px;padding:2px 10px;cursor:pointer;margin-top:4px}
+.emutog.on{color:var(--ink);border-color:var(--hold)}
+.emunote{font-size:11px;color:var(--muted)} .emunote.warn{color:var(--mod)}
+.emunote button{font:inherit;background:none;border:0;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
 .app{display:flex;flex-direction:column;gap:10px}
 .onboard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:clamp(20px,4vw,40px);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:stretch}
 .onboard h2{font-size:clamp(20px,3vw,26px);font-weight:600;margin:0 0 6px;text-wrap:balance}
@@ -529,6 +533,67 @@ async function supaFetch(path,opt){
   if(!r.ok)throw new Error((j&&(j.message||j.hint))||('HTTP '+r.status));
   return j;
 }
+/* ---- play someone else's keymap on your own keyboard (no flashing) ----
+   e.code tells which HID usage the keyboard sent. Reverse it through your own keymap to get the
+   physical key (and the layer you were on), then look that physical key up in the other keymap. */
+const CODE2U={Space:'SPACE',Enter:'ENTER',NumpadEnter:'ENTER',Backspace:'BSPC',Tab:'TAB',Escape:'ESC',Delete:'DEL',CapsLock:'CAPS',Insert:'INS',
+ Minus:'MINUS',Equal:'EQUAL',BracketLeft:'LBKT',BracketRight:'RBKT',Backslash:'BSLH',IntlBackslash:'NUBS',Semicolon:'SEMI',Quote:'SQT',Backquote:'GRAVE',
+ Comma:'COMMA',Period:'DOT',Slash:'FSLH',IntlRo:'INT1',IntlYen:'INT3',Lang1:'LANG1',Lang2:'LANG2',
+ ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',Home:'HOME',End:'END',PageUp:'PG_UP',PageDown:'PG_DN',
+ ShiftLeft:'LSHIFT',ShiftRight:'RSHIFT',ControlLeft:'LCTRL',ControlRight:'RCTRL',AltLeft:'LALT',AltRight:'RALT',MetaLeft:'LGUI',MetaRight:'RGUI',
+ NumpadDecimal:'KPDOT',NumpadDivide:'KPSL',NumpadMultiply:'KPAST',NumpadSubtract:'KPMIN',NumpadAdd:'KPPLUS'};
+for(const c of LETTERS)CODE2U['Key'+c]=c;
+for(const d of '1234567890'){CODE2U['Digit'+d]='N'+d;CODE2U['Numpad'+d]='KP'+d;}
+for(let i=1;i<=24;i++)CODE2U['F'+i]='F'+i;
+const UNORM={NUHS:'BSLH',RET:'ENTER',RETURN:'ENTER',BACKSPACE:'BSPC',ESCAPE:'ESC',DELETE:'DEL',PAGE_UP:'PG_UP',PAGE_DOWN:'PG_DN',CAPSLOCK:'CAPS',INSERT:'INS',
+ LSHFT:'LSHIFT',LEFT_SHIFT:'LSHIFT',RSHFT:'RSHIFT',RIGHT_SHIFT:'RSHIFT',LCTL:'LCTRL',LEFT_CONTROL:'LCTRL',RCTL:'RCTRL',RIGHT_CONTROL:'RCTRL',
+ LEFT_ALT:'LALT',RIGHT_ALT:'RALT',LCMD:'LGUI',LWIN:'LGUI',LMETA:'LGUI',LEFT_GUI:'LGUI',RCMD:'RGUI',RWIN:'RGUI',RMETA:'RGUI',RIGHT_GUI:'RGUI'};
+const normU=u=>UNORM[u]||u;
+function ownIndex(model){
+  const out=[];
+  model.layers.forEach((layer,L)=>layer.keys.forEach((_,i)=>{
+    if(L>0&&layer.keys[i].trans)return;const k=effKey(model,L,i);if(!k)return;
+    if(k.tap&&!k.tap.ctrl&&!k.tap.gui&&!k.tap.alt)out.push({L,i,u:normU(k.tap.u),s:!!k.tap.s});
+    if(k.holdMod&&(k.beh==='kp'||k.beh==='mt'||k.beh==='sk')){const nm=k.beh==='mt'||k.beh==='sk'?k.params[0]:k.params.join(' ');out.push({L,i,u:normU(nm),s:false,mod:true});}
+  }));
+  return out;
+}
+class KeymapEmulator{
+  constructor(own,other,hostFn){this.own=own;this.other=other;this.host=hostFn;this.oR=reachPaths(own);this.idx=ownIndex(own);this.held=new Map();this.pending=null;}
+  resolve(e){
+    const u=CODE2U[e.code];if(!u)return null;
+    const physShift=this.held.has('ShiftLeft')||this.held.has('ShiftRight');const wantS=!!e.shiftKey&&!physShift&&!/^Shift/.test(e.code);
+    let best=null,bs=1e9;
+    for(const x of this.idx){if(x.u!==u)continue;const r=this.oR[x.L];if(!r)continue;let sc=r.length*10+x.L;if(!x.mod&&!!x.s!==wantS)sc+=100;if(sc<bs){bs=sc;best=x;}}
+    return best;
+  }
+  activeLayer(hp){
+    const m=this.other,act=new Set([0]);
+    for(let it=0;it<3;it++)for(const p of hp)for(const L of [...act]){const k=effKey(m,L,p);if(k&&k.holdLayer!=null&&k.holdLayer<m.layers.length)act.add(k.holdLayer);}
+    for(const c of m.cond)if(c.then!=null&&c.then<m.layers.length&&c.ifs.length&&c.ifs.every(x=>act.has(x)))act.add(c.then);
+    return Math.max(...act);
+  }
+  shiftOn(hp,AL){for(const p of hp){const a=effKey(this.other,AL,p),b=effKey(this.other,0,p);if((a&&a.holdMod==='shift')||(b&&b.holdMod==='shift'))return true;}return false;}
+  down(e){
+    if(e.repeat)return null;
+    const x=this.resolve(e);if(!x)return null;
+    const hp=new Set(this.held.values());for(const p of (this.oR[x.L]||[]))hp.add(p);
+    if(this.pending)this.pending.used=true;
+    const AL=this.activeLayer(hp);const k=effKey(this.other,AL,x.i);const sh=this.shiftOn(hp,AL);
+    this.held.set(e.code,x.i);
+    if(!k)return null;
+    if(k.beh==='lt'||k.beh==='mt'){this.pending={code:e.code,k,used:false,shift:sh};return null;}
+    if(k.holdLayer!=null||(k.holdMod&&!k.tap))return null;
+    const t=k.tap;if(!t||!t.ch||t.ctrl||t.gui||t.alt)return null;
+    return charOf(t.u,t.s||sh,this.host());
+  }
+  up(e){
+    this.held.delete(e.code);const pd=this.pending;
+    if(pd&&pd.code===e.code){this.pending=null;if(!pd.used){const t=pd.k.tap;if(t&&t.ch&&!t.ctrl&&!t.gui&&!t.alt)return charOf(t.u,t.s||pd.shift,this.host());}}
+    return null;
+  }
+  reset(){this.held.clear();this.pending=null;}
+}
 /* Romaji */
 const KANA={'あ':['a'],'い':['i','yi'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
 'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
@@ -658,6 +723,7 @@ const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem('oet:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('oet:'+k,JSON.stringify(v));}catch(e){}}};
 const S={text:(()=>{const t=store.get('keymap',null);return (!t||t===SAMPLE)?DEFAULT_KM:t;})(),ovr:store.get('ovr',{}),host:store.get('host','jis'),mod:store.get('mod','gui'),mode:store.get('mode','romaji'),
   km:null,model:null,geo:[],R:[],view:null,edit:false,editPos:null,keyEls:[],
+  emu:null,emuWhy:'',emuOn:store.get('emuOn',true),
   item:null,typer:null,pos:0,srcIdx:-1,lock:false,im:'romaji',started:false,t0:0,
   correct:0,miss:0,activeMs:0,last:0,done:0,weak:{}};
 
@@ -850,6 +916,7 @@ function renderHint(g){
   if(parts.length)html+=parts.join(' <span class="plus">＋</span> ')+' <span class="plus">を押しながら →</span> ';
   html+=tg+(g.combo?' <span class="plus">（コンボで同時押し）</span>':'');
   if(g.dedicated)html+=' <span class="plus">（専用キー）</span>';
+  if(emuActive())html+=' <span class="plus">· 変換中</span>';
   h.innerHTML=html;
 }
 function renderPrompt(){
@@ -891,7 +958,9 @@ function renderStats(){
   $('#weak').innerHTML=top.length?'苦手なキー '+top.map(([c,n])=>`<b>${esc(c===' '?'Space':c)}<small>${n}</small></b>`).join(''):'';
 }
 function renderSrc(){
-  if(S.shared){$('#kmsrc').innerHTML=`<b>${esc(S.shared.name)}</b> さんの配列で練習中 <a class="srclink" href="${SHARE_URL}#km-${S.shared.id}">配列を見る</a> <a class="srclink" href="${location.pathname}">自分の配列に戻る</a>`;return;}
+  if(S.shared){$('#kmsrc').innerHTML=`<b>${esc(S.shared.name)}</b> さんの配列で練習中 <a class="srclink" href="${SHARE_URL}#km-${S.shared.id}">配列を見る</a> <a class="srclink" href="${location.pathname}">自分の配列に戻る</a><br>`+
+    (S.emu?`<button class="emutog${S.emuOn?' on':''}" id="emutog" aria-pressed="${S.emuOn}">自分のキーボードから変換 ${S.emuOn?'オン':'オフ'}</button> <span class="emunote">${S.emuOn?'押した物理キーを、この人の配列に置き換えて判定します':'オフ: この人の配列を書き込んだキーボード向け'}</span>`:
+     `<span class="emunote warn">${esc(S.emuWhy)}。<button id="open-own">自分の配列を読み込む</button></span>`);return;}
   if(S.demo){$('#kmsrc').innerHTML='サンプル配列で表示中 <button id="open-set">自分のキーマップを読み込む</button>';return;}
   const def=false,edited=Object.keys(S.ovr).length&&S.km&&S.km.src==='launcher';
   $('#kmsrc').innerHTML=(def?'11/5 に書き出したキーマップで表示中':(S.km&&S.km.src==='launcher'?'Launcher のキーマップで表示中':'ZMK keymap で表示中'))+(edited?'（一部編集済み）':'')+' <button id="open-set">キーマップを変更</button>';
@@ -919,6 +988,17 @@ function renderNext(){
     return `<li class="${i?'':'first'}${pre.length?' lay':''}"><b>${esc(c===' '?'␣':c)}</b><span>${esc((pre.length?pre.join('+')+'+':'')+keyText(g.layer,g.target[0]))}</span></li>`;}).join('');
 }
 function startPractice(){S.started=true;S.t0=performance.now();S.correct=0;S.miss=0;S.activeMs=0;S.last=0;S.done=0;S.weak={};renderAll();}
+
+/* emulation setup: own keymap = the one saved in this browser */
+function setupEmu(){
+  S.emu=null;S.emuWhy='';
+  const own=store.get('keymap',null);
+  if(!own||!store.get('imported',false)){S.emuWhy='自分の配列が未登録のため、変換できません';return;}
+  try{const t=String(own).trim();const km=t.startsWith('{')?importLauncher(JSON.parse(t)):parseKeymap(t);
+    S.emu=new KeymapEmulator(buildModel(km),S.model,()=>S.host);}
+  catch(e){S.emuWhy='自分の配列を読めなかったため、変換できません';}
+}
+const emuActive=()=>!!(S.shared&&S.emu&&S.emuOn);
 
 /* onboarding */
 function showOnboard(){$('#ob-back').hidden=!S.model||$('#app').hidden;S.onboard=true;$('#onboard').hidden=false;$('#app').hidden=true;$('#ob-status').textContent='';$('#ob-status').className='status';}
@@ -955,6 +1035,12 @@ document.addEventListener('keydown',e=>{
   const tg=e.target;if(tg&&(tg.tagName==='TEXTAREA'||tg.tagName==='INPUT'||tg.tagName==='SELECT'))return;
   if(e.isComposing||e.key==='Process'||e.keyCode===229){$('#ime').hidden=false;return;}
   if(!S.started){if(e.key===' '&&!e.ctrlKey&&!e.metaKey){e.preventDefault();startPractice();}return;}
+  if(emuActive()&&S.im!=='shortcut'&&!e.ctrlKey&&!e.metaKey){
+    e.preventDefault();
+    if(e.key==='Escape'){skip();return;}
+    const ch=S.emu.down(e);if(ch!=null)typeChar(ch);
+    return;
+  }
   if(S.im==='shortcut'){handleShortcut(e);return;}
   if(e.ctrlKey||e.metaKey)return;
   if(e.key==='Escape'){e.preventDefault();skip();return;}
@@ -964,11 +1050,20 @@ document.addEventListener('keydown',e=>{
   $('#ime').hidden=true;
   typeChar(e.key);
 });
+document.addEventListener('keyup',e=>{
+  if(!emuActive()||S.onboard||!S.started||S.im==='shortcut')return;
+  const tg=e.target;if(tg&&(tg.tagName==='TEXTAREA'||tg.tagName==='INPUT'))return;
+  const ch=S.emu.up(e);if(ch!=null)typeChar(ch);
+});
+window.addEventListener('blur',()=>{if(S.emu)S.emu.reset();});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mode=b.dataset.mode;store.set('mode',S.mode);S.view=null;S.started=false;b.blur();newItem();});
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const l=b.dataset.l;S.view=l==='auto'?null:(S.view===+l?null:+l);b.blur();renderAll();});
 for(const id of ['#host','#host2'])$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-host]');if(!b)return;S.host=b.dataset.host;store.set('host',S.host);b.blur();renderAll();});
 $('#modsel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mod=b.dataset.mod;store.set('mod',S.mod);b.blur();renderAll();});
-$('#kmsrc').addEventListener('click',e=>{if(e.target.id!=='open-set')return;showOnboard();});
+$('#kmsrc').addEventListener('click',e=>{
+  if(e.target.id==='emutog'){S.emuOn=!S.emuOn;store.set('emuOn',S.emuOn);if(S.emu)S.emu.reset();e.target.blur();renderAll();return;}
+  if(e.target.id==='open-own'){const t=$('#settings');t.open=true;t.scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(e.target.id!=='open-set')return;showOnboard();});
 $('#ob-back').addEventListener('click',()=>{S.onboard=false;$('#onboard').hidden=true;$('#app').hidden=false;renderAll();});
 $('#ob-file').addEventListener('change',e=>{readFile(e.target.files[0]);e.target.value='';});
 const drop=$('#drop');
@@ -996,7 +1091,7 @@ $('#sharelink').href=SHARE_URL;
     try{
       const rows=await supaFetch('keymaps?select=id,name,layers&id=eq.'+qid);
       if(rows&&rows[0]){const text=JSON.stringify(toLauncher(rows[0].layers));
-        if(loadKeymap(text,rows[0].name+' さんの配列を読み込みました（自分の保存済み配列はそのままです）',true,true)){S.shared={id:rows[0].id,name:rows[0].name};showApp();return;}}
+        if(loadKeymap(text,rows[0].name+' さんの配列を読み込みました（自分の保存済み配列はそのままです）',true,true)){S.shared={id:rows[0].id,name:rows[0].name};setupEmu();showApp();return;}}
     }catch(e){}
   }
   if(store.get('imported',false)&&loadKeymap(S.text)){showApp();}

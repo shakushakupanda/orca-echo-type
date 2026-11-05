@@ -493,6 +493,67 @@ async function supaFetch(path,opt){
   if(!r.ok)throw new Error((j&&(j.message||j.hint))||('HTTP '+r.status));
   return j;
 }
+/* ---- play someone else's keymap on your own keyboard (no flashing) ----
+   e.code tells which HID usage the keyboard sent. Reverse it through your own keymap to get the
+   physical key (and the layer you were on), then look that physical key up in the other keymap. */
+const CODE2U={Space:'SPACE',Enter:'ENTER',NumpadEnter:'ENTER',Backspace:'BSPC',Tab:'TAB',Escape:'ESC',Delete:'DEL',CapsLock:'CAPS',Insert:'INS',
+ Minus:'MINUS',Equal:'EQUAL',BracketLeft:'LBKT',BracketRight:'RBKT',Backslash:'BSLH',IntlBackslash:'NUBS',Semicolon:'SEMI',Quote:'SQT',Backquote:'GRAVE',
+ Comma:'COMMA',Period:'DOT',Slash:'FSLH',IntlRo:'INT1',IntlYen:'INT3',Lang1:'LANG1',Lang2:'LANG2',
+ ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',Home:'HOME',End:'END',PageUp:'PG_UP',PageDown:'PG_DN',
+ ShiftLeft:'LSHIFT',ShiftRight:'RSHIFT',ControlLeft:'LCTRL',ControlRight:'RCTRL',AltLeft:'LALT',AltRight:'RALT',MetaLeft:'LGUI',MetaRight:'RGUI',
+ NumpadDecimal:'KPDOT',NumpadDivide:'KPSL',NumpadMultiply:'KPAST',NumpadSubtract:'KPMIN',NumpadAdd:'KPPLUS'};
+for(const c of LETTERS)CODE2U['Key'+c]=c;
+for(const d of '1234567890'){CODE2U['Digit'+d]='N'+d;CODE2U['Numpad'+d]='KP'+d;}
+for(let i=1;i<=24;i++)CODE2U['F'+i]='F'+i;
+const UNORM={NUHS:'BSLH',RET:'ENTER',RETURN:'ENTER',BACKSPACE:'BSPC',ESCAPE:'ESC',DELETE:'DEL',PAGE_UP:'PG_UP',PAGE_DOWN:'PG_DN',CAPSLOCK:'CAPS',INSERT:'INS',
+ LSHFT:'LSHIFT',LEFT_SHIFT:'LSHIFT',RSHFT:'RSHIFT',RIGHT_SHIFT:'RSHIFT',LCTL:'LCTRL',LEFT_CONTROL:'LCTRL',RCTL:'RCTRL',RIGHT_CONTROL:'RCTRL',
+ LEFT_ALT:'LALT',RIGHT_ALT:'RALT',LCMD:'LGUI',LWIN:'LGUI',LMETA:'LGUI',LEFT_GUI:'LGUI',RCMD:'RGUI',RWIN:'RGUI',RMETA:'RGUI',RIGHT_GUI:'RGUI'};
+const normU=u=>UNORM[u]||u;
+function ownIndex(model){
+  const out=[];
+  model.layers.forEach((layer,L)=>layer.keys.forEach((_,i)=>{
+    if(L>0&&layer.keys[i].trans)return;const k=effKey(model,L,i);if(!k)return;
+    if(k.tap&&!k.tap.ctrl&&!k.tap.gui&&!k.tap.alt)out.push({L,i,u:normU(k.tap.u),s:!!k.tap.s});
+    if(k.holdMod&&(k.beh==='kp'||k.beh==='mt'||k.beh==='sk')){const nm=k.beh==='mt'||k.beh==='sk'?k.params[0]:k.params.join(' ');out.push({L,i,u:normU(nm),s:false,mod:true});}
+  }));
+  return out;
+}
+class KeymapEmulator{
+  constructor(own,other,hostFn){this.own=own;this.other=other;this.host=hostFn;this.oR=reachPaths(own);this.idx=ownIndex(own);this.held=new Map();this.pending=null;}
+  resolve(e){
+    const u=CODE2U[e.code];if(!u)return null;
+    const physShift=this.held.has('ShiftLeft')||this.held.has('ShiftRight');const wantS=!!e.shiftKey&&!physShift&&!/^Shift/.test(e.code);
+    let best=null,bs=1e9;
+    for(const x of this.idx){if(x.u!==u)continue;const r=this.oR[x.L];if(!r)continue;let sc=r.length*10+x.L;if(!x.mod&&!!x.s!==wantS)sc+=100;if(sc<bs){bs=sc;best=x;}}
+    return best;
+  }
+  activeLayer(hp){
+    const m=this.other,act=new Set([0]);
+    for(let it=0;it<3;it++)for(const p of hp)for(const L of [...act]){const k=effKey(m,L,p);if(k&&k.holdLayer!=null&&k.holdLayer<m.layers.length)act.add(k.holdLayer);}
+    for(const c of m.cond)if(c.then!=null&&c.then<m.layers.length&&c.ifs.length&&c.ifs.every(x=>act.has(x)))act.add(c.then);
+    return Math.max(...act);
+  }
+  shiftOn(hp,AL){for(const p of hp){const a=effKey(this.other,AL,p),b=effKey(this.other,0,p);if((a&&a.holdMod==='shift')||(b&&b.holdMod==='shift'))return true;}return false;}
+  down(e){
+    if(e.repeat)return null;
+    const x=this.resolve(e);if(!x)return null;
+    const hp=new Set(this.held.values());for(const p of (this.oR[x.L]||[]))hp.add(p);
+    if(this.pending)this.pending.used=true;
+    const AL=this.activeLayer(hp);const k=effKey(this.other,AL,x.i);const sh=this.shiftOn(hp,AL);
+    this.held.set(e.code,x.i);
+    if(!k)return null;
+    if(k.beh==='lt'||k.beh==='mt'){this.pending={code:e.code,k,used:false,shift:sh};return null;}
+    if(k.holdLayer!=null||(k.holdMod&&!k.tap))return null;
+    const t=k.tap;if(!t||!t.ch||t.ctrl||t.gui||t.alt)return null;
+    return charOf(t.u,t.s||sh,this.host());
+  }
+  up(e){
+    this.held.delete(e.code);const pd=this.pending;
+    if(pd&&pd.code===e.code){this.pending=null;if(!pd.used){const t=pd.k.tap;if(t&&t.ch&&!t.ctrl&&!t.gui&&!t.alt)return charOf(t.u,t.s||pd.shift,this.host());}}
+    return null;
+  }
+  reset(){this.held.clear();this.pending=null;}
+}
 /* Romaji */
 const KANA={'あ':['a'],'い':['i','yi'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
 'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
