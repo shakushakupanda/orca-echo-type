@@ -47,6 +47,9 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .nextkeys li.na b{color:var(--miss)}
 .startcue{color:var(--accent);font-weight:700}
 .foot{font-size:12px;color:var(--muted);text-align:center}
+.toplink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--key-edge);border-radius:999px;padding:5px 14px;background:var(--surface)}
+.toplink:hover{border-color:var(--muted)}
+.srclink{color:var(--accent);margin-left:6px}
 .app{display:flex;flex-direction:column;gap:10px}
 .onboard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:clamp(20px,4vw,40px);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:stretch}
 .onboard h2{font-size:clamp(20px,3vw,26px);font-weight:600;margin:0 0 6px;text-wrap:balance}
@@ -173,6 +176,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
         <p class="sub">キーマップを読んで、次に押すキーとレイヤーを光らせます</p>
       </div>
     </div>
+    <a class="toplink" id="sharelink" href="#">みんなの配列 →</a>
   </header>
   <section class="onboard" id="onboard" hidden>
     <div class="ob-text">
@@ -506,6 +510,25 @@ function launcherGeometry(matrix){
     return {x:px/OE_PX,y:py/OE_PX,h,rot,side,thumb,finger:thumb?'親指':OE_FINGER[c]};
   });
 }
+/* compact form used by the shared keymap database: layers of 56 values (4 rows × 14 cols) */
+function toLauncher(layers){return {keymap:layers.map(l=>l.map((v,i)=>({row:Math.floor(i/14),col:i%14,val:v|0})))};}
+function fromLauncherObj(obj){
+  if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の書き出しファイルではないようです。');
+  let big=false;
+  const maps=obj.keymap.map(l=>{const a=new Array(56).fill(0);for(const e of l){if(e.row>3||e.col>13){if(e.val)big=true;continue;}a[e.row*14+e.col]=e.val|0;}return a;});
+  if(big)throw new Error('Orca echo（4段×14列）の書き出しファイルではないようです。');
+  let last=maps.length-1;while(last>0&&maps[last].every(v=>v<=1))last--;
+  if(maps.some(a=>a.some(v=>v===0x7C77||v===0x7C78)))last=Math.max(last,Math.min(3,maps.length-1));
+  return maps.slice(0,last+1);
+}
+const SUPA={url:"",key:""};
+async function supaFetch(path,opt){
+  if(!SUPA.url)throw new Error('データベースが未設定です');
+  const r=await fetch(SUPA.url+'/rest/v1/'+path,Object.assign({},opt,{headers:Object.assign({apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json'},(opt&&opt.headers)||{})}));
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.hint))||('HTTP '+r.status));
+  return j;
+}
 /* Romaji */
 const KANA={'あ':['a'],'い':['i','yi'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
 'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
@@ -606,6 +629,7 @@ const SAMPLE=`/* サンプル配列（仮）— 自分の keymap に置き換え
 };
 `;
 
+const SHARE_URL='https://shakushakupanda.github.io/orca-echo-type/share.html';
 const DEFAULT_KM="{\"id\":875824269,\"keymap\":[[{\"col\":0,\"row\":0,\"val\":41},{\"col\":1,\"row\":0,\"val\":20},{\"col\":2,\"row\":0,\"val\":26},{\"col\":3,\"row\":0,\"val\":8},{\"col\":4,\"row\":0,\"val\":21},{\"col\":5,\"row\":0,\"val\":23},{\"col\":6,\"row\":0,\"val\":209},{\"col\":7,\"row\":0,\"val\":209},{\"col\":8,\"row\":0,\"val\":28},{\"col\":9,\"row\":0,\"val\":24},{\"col\":10,\"row\":0,\"val\":12},{\"col\":11,\"row\":0,\"val\":18},{\"col\":12,\"row\":0,\"val\":19},{\"col\":13,\"row\":0,\"val\":45},{\"col\":0,\"row\":1,\"val\":43},{\"col\":1,\"row\":1,\"val\":4},{\"col\":2,\"row\":1,\"val\":22},{\"col\":3,\"row\":1,\"val\":7},{\"col\":4,\"row\":1,\"val\":9},{\"col\":5,\"row\":1,\"val\":10},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":11},{\"col\":9,\"row\":1,\"val\":13},{\"col\":10,\"row\":1,\"val\":14},{\"col\":11,\"row\":1,\"val\":15},{\"col\":12,\"row\":1,\"val\":51},{\"col\":13,\"row\":1,\"val\":40},{\"col\":0,\"row\":2,\"val\":225},{\"col\":1,\"row\":2,\"val\":29},{\"col\":2,\"row\":2,\"val\":27},{\"col\":3,\"row\":2,\"val\":6},{\"col\":4,\"row\":2,\"val\":25},{\"col\":5,\"row\":2,\"val\":5},{\"col\":6,\"row\":2,\"val\":31864},{\"col\":7,\"row\":2,\"val\":5},{\"col\":8,\"row\":2,\"val\":17},{\"col\":9,\"row\":2,\"val\":16},{\"col\":10,\"row\":2,\"val\":54},{\"col\":11,\"row\":2,\"val\":55},{\"col\":12,\"row\":2,\"val\":550},{\"col\":13,\"row\":2,\"val\":551},{\"col\":0,\"row\":3,\"val\":224},{\"col\":1,\"row\":3,\"val\":32263},{\"col\":2,\"row\":3,\"val\":32265},{\"col\":3,\"row\":3,\"val\":145},{\"col\":4,\"row\":3,\"val\":31863},{\"col\":5,\"row\":3,\"val\":44},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":42},{\"col\":10,\"row\":3,\"val\":144},{\"col\":11,\"row\":3,\"val\":30465},{\"col\":12,\"row\":3,\"val\":30466},{\"col\":13,\"row\":3,\"val\":30467}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":82},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":211},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":36},{\"col\":12,\"row\":0,\"val\":37},{\"col\":13,\"row\":0,\"val\":38},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":80},{\"col\":3,\"row\":1,\"val\":81},{\"col\":4,\"row\":1,\"val\":79},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":209},{\"col\":10,\"row\":1,\"val\":210},{\"col\":11,\"row\":1,\"val\":33},{\"col\":12,\"row\":1,\"val\":34},{\"col\":13,\"row\":1,\"val\":35},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":30},{\"col\":12,\"row\":2,\"val\":31},{\"col\":13,\"row\":2,\"val\":32},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":39},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":548},{\"col\":12,\"row\":0,\"val\":549},{\"col\":13,\"row\":0,\"val\":568},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":545},{\"col\":12,\"row\":1,\"val\":546},{\"col\":13,\"row\":1,\"val\":547},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":542},{\"col\":12,\"row\":2,\"val\":543},{\"col\":13,\"row\":2,\"val\":544},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":47},{\"col\":13,\"row\":2,\"val\":48},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}]],\"version\":\"1.0.0\",\"MD5\":\"0443fd6862970bcc2ad77839597cda63\",\"knob\":[{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"}]}";
 const SETS={
 romaji:[["今日はいい天気ですね","きょうはいいてんきですね"],["分割キーボードに慣れてきた","ぶんかつきーぼーどになれてきた"],["親指でスペースを押す","おやゆびですぺーすをおす"],
@@ -638,16 +662,16 @@ const S={text:(()=>{const t=store.get('keymap',null);return (!t||t===SAMPLE)?DEF
   correct:0,miss:0,activeMs:0,last:0,done:0,weak:{}};
 
 /* keymap loading */
-function loadKeymap(text,msg,fresh){
+function loadKeymap(text,msg,fresh,noSave){
   try{
     const isJson=text.trim().startsWith('{');
     let km;
     if(isJson){let obj;try{obj=JSON.parse(text);}catch(e){throw new Error('JSON として読めませんでした。Launcher で書き出したファイルをそのまま貼ってください。');}km=importLauncher(obj);}
     else km=parseKeymap(text);
-    if(fresh){S.ovr={};store.set('ovr',{});}
-    if(km.src==='launcher')for(const key in S.ovr){const [L,i]=key.split(':').map(Number);if(km.layers[L]&&i<km.layers[L].raw.length)km.layers[L].raw[i]=S.ovr[key];}
+    if(fresh&&!noSave){S.ovr={};store.set('ovr',{});}
+    if(km.src==='launcher'&&!noSave)for(const key in S.ovr){const [L,i]=key.split(':').map(Number);if(km.layers[L]&&i<km.layers[L].raw.length)km.layers[L].raw[i]=S.ovr[key];}
     const model=buildModel(km);
-    S.km=km;S.model=model;S.text=text;store.set('keymap',text);
+    S.km=km;S.model=model;S.text=text;if(!noSave){store.set('keymap',text);S.shared=null;}
     const n=Math.max(...km.layers.map(l=>l.raw.length));
     S.geo=km.matrix?launcherGeometry(km.matrix):geometry(n);S.R=reachPaths(model);S.view=null;S.editPos=null;
     buildKeyboard();
@@ -867,6 +891,7 @@ function renderStats(){
   $('#weak').innerHTML=top.length?'苦手なキー '+top.map(([c,n])=>`<b>${esc(c===' '?'Space':c)}<small>${n}</small></b>`).join(''):'';
 }
 function renderSrc(){
+  if(S.shared){$('#kmsrc').innerHTML=`<b>${esc(S.shared.name)}</b> さんの配列で練習中 <a class="srclink" href="${SHARE_URL}#km-${S.shared.id}">配列を見る</a> <a class="srclink" href="${location.pathname}">自分の配列に戻る</a>`;return;}
   if(S.demo){$('#kmsrc').innerHTML='サンプル配列で表示中 <button id="open-set">自分のキーマップを読み込む</button>';return;}
   const def=false,edited=Object.keys(S.ovr).length&&S.km&&S.km.src==='launcher';
   $('#kmsrc').innerHTML=(def?'11/5 に書き出したキーマップで表示中':(S.km&&S.km.src==='launcher'?'Launcher のキーマップで表示中':'ZMK keymap で表示中'))+(edited?'（一部編集済み）':'')+' <button id="open-set">キーマップを変更</button>';
@@ -914,7 +939,8 @@ function onKeyClick(i){
   renderAll();
 }
 function applyEdit(){
-  if(S.editPos==null)return;const L=S.view!=null?S.view:0;const v=$('#ed-input').value.trim();
+  if(S.editPos==null)return;
+  if(S.shared){$('#ed-where').textContent='共有された配列は編集できません。';return;}const L=S.view!=null?S.view:0;const v=$('#ed-input').value.trim();
   if(!v.startsWith('&')){$('#ed-where').textContent='「&kp A」のように & から書いてください';return;}
   const keep=S.view,pos=S.editPos;const b=splitBindings(v)[0];
   let ok;
@@ -963,8 +989,19 @@ window.addEventListener('focus',()=>{$('#focusnote').hidden=true;});
 document.addEventListener('pointerdown',()=>{$('#focusnote').hidden=true;});
 setInterval(renderStats,1000);
 
-if(store.get('imported',false)&&loadKeymap(S.text)){showApp();}
-else showOnboard();
+$('#sharelink').href=SHARE_URL;
+(async function boot(){
+  let qid=null;try{qid=new URLSearchParams(location.search).get('id');}catch(e){}
+  if(qid&&/^[0-9a-f-]{36}$/i.test(qid)){
+    try{
+      const rows=await supaFetch('keymaps?select=id,name,layers&id=eq.'+qid);
+      if(rows&&rows[0]){const text=JSON.stringify(toLauncher(rows[0].layers));
+        if(loadKeymap(text,rows[0].name+' さんの配列を読み込みました（自分の保存済み配列はそのままです）',true,true)){S.shared={id:rows[0].id,name:rows[0].name};showApp();return;}}
+    }catch(e){}
+  }
+  if(store.get('imported',false)&&loadKeymap(S.text)){showApp();}
+  else showOnboard();
+})();
 </script>
 
 </body>

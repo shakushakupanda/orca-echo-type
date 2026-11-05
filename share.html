@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orca echo みんなの配列</title>
+<meta name="description" content="Keychron Orca echo のキーマップを持ち寄って、置き方の傾向や似ている配列を見られるページ">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: header + section tabs, then one working view at a time (list / trends / similar / post / detail). Same dark Launcher-like look as the typing page. */
+:root{
+  --bg:#0E0E0F; --surface:#18181A; --surface-2:#202023; --ink:#ECECEE; --muted:#8C8C93; --line:#2A2A2E;
+  --key:#2C2C2F; --key-edge:#3A3A3E; --body:#1E1E20; --body-edge:#333337;
+  --accent:#E0534A; --accent-soft:#3A1D1B; --on-accent:#FFFFFF;
+  --hold:#9CA3C9; --hold-soft:#262A3D; --mod:#CFAE6B; --mod-soft:#332B1B; --miss:#FF6B5E; --ok:#6CC28E;
+  --l0:#6E6E76; --l1:#9CA3C9; --l2:#CFAE6B; --l3:#6CC28E; --lx:#B58AC9; --lnone:#3A3A3E;
+  --f-body:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);margin:0}
+[hidden]{display:none!important}
+body{font-family:var(--f-body);font-size:15px;line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:30px;height:30px;flex:none}
+.mark rect{fill:var(--key);stroke:var(--key-edge)} .mark circle{fill:var(--accent)}
+h1{font-weight:600;font-size:clamp(19px,2.6vw,22px);line-height:1.15;margin:0;letter-spacing:-.01em}
+.sub{margin:1px 0 0;color:var(--muted);font-size:12px}
+.hright{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.toplink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--key-edge);border-radius:999px;padding:5px 14px;background:var(--surface)}
+.toplink:hover{border-color:var(--muted)}
+.tabs{align-self:flex-start;display:flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs a{font-size:13px;font-weight:500;color:var(--muted);padding:5px 14px;border-radius:7px;text-decoration:none}
+.tabs a[aria-current="page"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--key-edge)}
+.tabs a.cta{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;align-items:stretch}
+.seg span{font-size:12px;color:var(--muted);padding:0 8px;display:flex;align-items:center;border-right:1px solid var(--line)}
+.seg button{font:inherit;font-size:12px;border:0;background:var(--bg);color:var(--muted);padding:4px 11px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--key);color:var(--ink)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:clamp(14px,2.5vw,24px);min-width:0}
+.view{display:flex;flex-direction:column;gap:14px}
+.vhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+h2{font-size:clamp(18px,2.4vw,22px);font-weight:600;margin:0;text-wrap:balance}
+h3{font-size:14px;font-weight:600;margin:0 0 8px}
+.muted{color:var(--muted)} .small{font-size:12px}
+.note{font-size:13px;color:var(--muted);margin:0;max-width:68ch}
+.btn{font:inherit;font-size:13px;font-weight:500;padding:7px 14px;border-radius:8px;border:1px solid var(--key-edge);background:var(--surface-2);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--miss);border-color:#5a2a27;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.status{font-size:13px;margin:0}
+.status.err{color:var(--miss)} .status.ok{color:var(--ok)}
+.empty{text-align:center;padding:40px 16px;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+/* boards */
+.board svg{display:block;width:100%;height:auto}
+.body{fill:var(--body);stroke:var(--body-edge);stroke-width:3}
+.ball{fill:#5A5A5E;stroke:#26262A;stroke-width:6}
+.ball-hl{fill:var(--key);opacity:.55}
+.wheel{fill:var(--key);stroke:var(--key-edge);stroke-width:1.5}
+.wheel-l{stroke:var(--key-edge);stroke-width:2}
+.key .cap{fill:var(--key);stroke:var(--key-edge);stroke-width:1;filter:drop-shadow(0 2px 0 rgba(0,0,0,.55))}
+.key .heat{fill:var(--accent);pointer-events:none}
+.key text{fill:var(--ink);text-anchor:middle;font-family:var(--f-body);font-weight:500;pointer-events:none}
+.key text.s{fill:var(--muted);font-size:9px}
+.key.trans text.m{fill:var(--muted);opacity:.55}
+.key.click{cursor:pointer}
+.key.click:hover .cap{stroke:var(--muted)}
+.key.sel .cap{stroke:var(--ink);stroke-width:2.4}
+.key.hot text.s{fill:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12px;font-weight:500;padding:3px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.chip.on{background:var(--surface-2);color:var(--ink);border-color:var(--key-edge)}
+/* list */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;min-width:0}
+.card:hover{border-color:var(--key-edge)}
+.card .meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .cm{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:1.6em}
+.badge{font-size:11px;font-family:var(--f-mono);color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;white-space:nowrap}
+.badge.mine{color:var(--accent);border-color:var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toolbar input{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0;flex:1 1 200px;max-width:320px}
+/* trends */
+.split{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+.dist{display:flex;flex-direction:column;gap:6px}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:13px}
+.drow .lb{display:flex;justify-content:space-between;gap:8px}
+.drow .lb b{font-family:var(--f-mono);font-weight:600}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;grid-column:1/-1}
+.bar i{display:block;height:100%;background:var(--accent)}
+.pct{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;color:var(--muted);font-size:12px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.sum{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.sum .big{font-size:22px;font-weight:600}
+.sum .big small{font-size:13px;color:var(--muted);font-weight:400;margin-left:6px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.06em}
+td.ch{font-family:var(--f-mono);font-size:17px;font-weight:600;width:44px;text-align:center}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;min-width:140px;background:var(--lnone)}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+/* similar / ranking */
+.rank{display:flex;flex-direction:column;gap:6px;counter-reset:r}
+.rk{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.rk .no{font-family:var(--f-mono);color:var(--muted);font-size:13px}
+.rk .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .sc{font-family:var(--f-mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.rk .acts{display:flex;gap:6px;grid-column:2/-1}
+.rk .acts a{font-size:12px;color:var(--accent);text-decoration:none}
+.picker{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;max-width:100%}
+/* post */
+.post{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:180px;border:1.5px dashed var(--key-edge);border-radius:14px;background:var(--bg);cursor:pointer;text-align:center;padding:18px}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop svg{width:44px;height:44px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.drop svg rect{fill:var(--key);stroke:var(--key-edge)}
+.drop b{font-size:15px}
+.form{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field textarea{font:inherit;font-size:14px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+.detail-acts{display:flex;flex-wrap:wrap;gap:8px}
+.backlink{font-size:13px;color:var(--muted);text-decoration:none}
+.backlink:hover{color:var(--ink)}
+@media (max-width:820px){.split,.post{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="9" stroke-width="1.5"/><circle cx="20" cy="20" r="5"/></svg>
+      <div>
+        <h1>Orca echo みんなの配列</h1>
+        <p class="sub">持ち寄ったキーマップから、置き方の傾向や似ている配列を見られます</p>
+      </div>
+    </div>
+    <div class="hright">
+      <div class="seg" id="hostsel" role="group" aria-label="記号の表示に使うPC配列"><span>PC配列</span><button data-host="jis">JIS</button><button data-host="us">US</button></div>
+      <a class="toplink" href="./">タイピング練習 →</a>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="ページ">
+    <a href="#list" data-v="list">配列一覧</a>
+    <a href="#trends" data-v="trends">キー位置の人気</a>
+    <a href="#symbols" data-v="symbols">数字・記号の傾向</a>
+    <a href="#similar" data-v="similar">似ている配列</a>
+    <a href="#post" data-v="post" class="cta">投稿する</a>
+  </nav>
+
+  <p class="status" id="gstatus"></p>
+
+  <!-- list -->
+  <section class="view" id="v-list" hidden>
+    <div class="vhead"><h2>配列一覧</h2><span class="muted small" id="count"></span></div>
+    <div class="toolbar"><input id="q" type="search" placeholder="ニックネーム・コメントで絞り込み" aria-label="絞り込み"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- trends -->
+  <section class="view" id="v-trends" hidden>
+    <div class="vhead"><h2>キー位置ごとの人気の割り当て</h2><span class="muted small" id="tcount"></span></div>
+    <p class="note">各キーに一番多く割り当てられているものと、その割合です。赤が濃いほど、みんなが同じものを置いています。キーを押すと内訳が出ます。</p>
+    <div class="chips" id="tchips"></div>
+    <div class="split">
+      <div class="panel board" id="tboard"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="キー位置ごとの人気"></svg></div>
+      <div class="panel"><h3 id="tdh">キーを選んでください</h3><div class="dist" id="tdist"><p class="note small">配列図のキーを押すと、そのキーに何が置かれているかの内訳が出ます。</p></div></div>
+    </div>
+  </section>
+
+  <!-- symbols -->
+  <section class="view" id="v-symbols" hidden>
+    <div class="vhead"><h2>数字・記号の置き方</h2><span class="muted small" id="scount"></span></div>
+    <div class="summary" id="ssum"></div>
+    <div class="legend" id="slegend"></div>
+    <div class="panel tbl-wrap"><table id="stable"><thead><tr><th>文字</th><th>一番多い置き方</th><th>割合</th><th>レイヤーの内訳</th></tr></thead><tbody></tbody></table></div>
+    <p class="note small">それぞれの投稿者のPC配列（JIS/US）で実際に出る文字をもとに数えています。</p>
+  </section>
+
+  <!-- similar -->
+  <section class="view" id="v-similar" hidden>
+    <div class="vhead"><h2>似ている配列</h2></div>
+    <p class="note">基準にする配列を選ぶと、英字・数字・記号がどれだけ同じ場所（同じレイヤー・同じキー）にあるかで近い順に並べます。</p>
+    <div class="panel picker">
+      <select id="simsel" aria-label="基準にする配列"></select>
+      <label class="btn">自分の JSON で比べる<input type="file" id="simfile" accept=".json" hidden></label>
+      <span class="status" id="simstatus"></span>
+    </div>
+    <div class="rank" id="rank"></div>
+  </section>
+
+  <!-- post -->
+  <section class="view" id="v-post" hidden>
+    <div class="vhead"><h2>配列を投稿する</h2></div>
+    <div class="post">
+      <div class="view">
+        <label class="drop" id="drop" for="pfile">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="6"/><path d="M24 31V18m0 0-5 5m5-5 5 5"/></svg>
+          <b>Launcher の JSON を選ぶ</b>
+          <span class="muted small">またはここにドラッグ／貼り付け</span>
+          <input type="file" id="pfile" accept=".json" hidden>
+        </label>
+        <button class="btn" id="usetyping" hidden>タイピング練習で読み込んだ配列を使う</button>
+        <div class="panel board" id="pboard" hidden><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="投稿する配列のプレビュー"></svg></div>
+      </div>
+      <form class="panel form" id="pform" novalidate>
+        <div class="field"><label for="pname">ニックネーム（必須・30文字まで）</label><input id="pname" maxlength="30" autocomplete="nickname" required></div>
+        <div class="field"><label for="pcomment">ひとこと（任意・200文字まで）</label><textarea id="pcomment" rows="3" maxlength="200" placeholder="例: 記号は Fn2 の右手にまとめています"></textarea></div>
+        <div class="field"><label>普段使っている PC 配列</label><div class="seg" id="phost" role="group" aria-label="PC配列"><button type="button" data-h="jis">JIS</button><button type="button" data-h="us">US</button></div></div>
+        <p class="note small">投稿した配列・ニックネーム・ひとことは、誰でも見られる状態で公開されます。削除は、投稿したこのブラウザからだけできます。</p>
+        <div><button class="btn pri" id="psubmit" type="submit" disabled>投稿する</button></div>
+        <p class="status" id="pstatus"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- detail -->
+  <section class="view" id="v-detail" hidden>
+    <a class="backlink" href="#list">← 配列一覧</a>
+    <div class="vhead"><h2 id="dname"></h2><span class="muted small" id="dmeta"></span></div>
+    <p class="note" id="dcomment"></p>
+    <div class="detail-acts">
+      <a class="btn pri" id="dpractice" href="#">この配列でタイピング練習</a>
+      <a class="btn" id="dsimilar" href="#similar">この配列に似ている人</a>
+      <button class="btn" id="dexport">JSON を書き出す</button>
+      <button class="btn danger" id="ddelete" hidden>削除する</button>
+    </div>
+    <p class="status" id="dstatus"></p>
+    <div class="chips" id="dchips"></div>
+    <div class="panel board" id="dboard"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="配列"></svg></div>
+  </section>
+
+  <footer class="foot">非公式ツールです。Keychron とは関係ありません。</footer>
+</div>
+
+<script>
+/*CORE*/
+const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ALIAS={};
+for(const c of LETTERS) ALIAS[c]=[c,0];
+for(const d of '1234567890'){ALIAS['N'+d]=['N'+d,0];ALIAS['NUMBER_'+d]=['N'+d,0];ALIAS['NUM_'+d]=['N'+d,0];}
+function al(names,u,s){for(const n of names.split(' '))ALIAS[n]=[u,s];}
+al('EXCL EXCLAMATION','N1',1);al('AT AT_SIGN','N2',1);al('HASH POUND','N3',1);al('DLLR DOLLAR','N4',1);
+al('PRCNT PERCENT','N5',1);al('CARET','N6',1);al('AMPS AMPERSAND','N7',1);al('STAR ASTRK ASTERISK','N8',1);
+al('LPAR LEFT_PARENTHESIS','N9',1);al('RPAR RIGHT_PARENTHESIS','N0',1);
+al('MINUS','MINUS',0);al('UNDER UNDERSCORE','MINUS',1);al('EQUAL','EQUAL',0);al('PLUS','EQUAL',1);
+al('LBKT LEFT_BRACKET','LBKT',0);al('LBRC LEFT_BRACE','LBKT',1);al('RBKT RIGHT_BRACKET','RBKT',0);al('RBRC RIGHT_BRACE','RBKT',1);
+al('BSLH BACKSLASH','BSLH',0);al('PIPE','BSLH',1);al('NUHS NON_US_HASH','NUHS',0);
+al('SEMI SEMICOLON','SEMI',0);al('COLON','SEMI',1);al('SQT APOS APOSTROPHE SINGLE_QUOTE','SQT',0);al('DQT DOUBLE_QUOTES','SQT',1);
+al('GRAVE','GRAVE',0);al('TILDE','GRAVE',1);al('COMMA','COMMA',0);al('LT LESS_THAN','COMMA',1);
+al('DOT PERIOD','DOT',0);al('GT GREATER_THAN','DOT',1);al('FSLH SLASH','FSLH',0);al('QMARK QUESTION','FSLH',1);
+al('SPACE SPC','SPACE',0);al('INT_RO INT1','INT1',0);al('INT_YEN INT3','INT3',0);
+for(const d of '1234567890')ALIAS['KP_N'+d]=['KP'+d,0];
+al('KP_DOT','KPDOT',0);al('KP_SLASH KP_DIVIDE','KPSL',0);al('KP_ASTERISK KP_MULTIPLY','KPAST',0);al('KP_MINUS KP_SUBTRACT','KPMIN',0);al('KP_PLUS','KPPLUS',0);
+
+const US={N1:['1','!'],N2:['2','@'],N3:['3','#'],N4:['4','$'],N5:['5','%'],N6:['6','^'],N7:['7','&'],N8:['8','*'],N9:['9','('],N0:['0',')'],
+MINUS:['-','_'],EQUAL:['=','+'],LBKT:['[','{'],RBKT:[']','}'],BSLH:['\\','|'],NUHS:['\\','|'],SEMI:[';',':'],SQT:["'",'"'],GRAVE:['`','~'],COMMA:[',','<'],DOT:['.','>'],FSLH:['/','?']};
+const JIS={N1:['1','!'],N2:['2','"'],N3:['3','#'],N4:['4','$'],N5:['5','%'],N6:['6','&'],N7:['7',"'"],N8:['8','('],N9:['9',')'],N0:['0',null],
+MINUS:['-','='],EQUAL:['^','~'],LBKT:['@','`'],RBKT:['[','{'],BSLH:[']','}'],NUHS:[']','}'],SEMI:[';','+'],SQT:[':','*'],COMMA:[',','<'],DOT:['.','>'],FSLH:['/','?'],INT1:['\\','_'],INT3:['\\','|']};
+
+for(const T of [US,JIS]){for(const d of '1234567890')T['KP'+d]=[d,null];T.KPDOT=['.',null];T.KPSL=['/',null];T.KPAST=['*',null];T.KPMIN=['-',null];T.KPPLUS=['+',null];}
+const MODNAME={};
+function mn(names,m){for(const n of names.split(' '))MODNAME[n]=m;}
+mn('LSHIFT LSHFT LEFT_SHIFT RSHIFT RSHFT RIGHT_SHIFT','shift');
+mn('LCTRL LCTL LEFT_CONTROL RCTRL RCTL RIGHT_CONTROL','ctrl');
+mn('LALT LEFT_ALT RALT RIGHT_ALT','alt');
+mn('LGUI LCMD LWIN LMETA LEFT_GUI RGUI RCMD RWIN RMETA RIGHT_GUI','gui');
+const MODLABEL={shift:'⇧',ctrl:'Ctrl',alt:'Alt',gui:'Cmd'};
+const NONCHAR={ENTER:'⏎',RET:'⏎',RETURN:'⏎',BSPC:'⌫',BACKSPACE:'⌫',TAB:'Tab',ESC:'Esc',ESCAPE:'Esc',DEL:'Del',DELETE:'Del',CAPS:'Caps',CAPSLOCK:'Caps',
+UP:'↑',DOWN:'↓',LEFT:'←',RIGHT:'→',PG_UP:'PgUp',PAGE_UP:'PgUp',PG_DN:'PgDn',PAGE_DOWN:'PgDn',HOME:'Home',END:'End',INS:'Ins',INSERT:'Ins',
+LANG1:'かな',LANG2:'英数',C_VOL_UP:'Vol+',C_VOL_DN:'Vol−',C_MUTE:'Mute',C_PP:'Play',C_NEXT:'⏭',C_PREV:'⏮',C_STOP:'⏹',PSCRN:'PrtSc',SLCK:'ScrLk',PAUSE_BREAK:'Pause',
+INT_HENKAN:'変換',INT_MUHENKAN:'無変換',INT_KANA:'カナ',K_APP:'Menu',KP_ENTER:'⏎',KP_NUM:'NumLk'};
+
+function resolveKey(expr){
+  const m={shift:false,ctrl:false,alt:false,gui:false};
+  let e=(expr||'').trim(),r;
+  while((r=/^([LR][SCAG])\((.*)\)$/.exec(e))){const f=r[1][1];if(f==='S')m.shift=true;else if(f==='C')m.ctrl=true;else if(f==='A')m.alt=true;else m.gui=true;e=r[2].trim();}
+  const a=ALIAS[e];
+  if(a) return {u:a[0],s:a[1]===1||m.shift,ctrl:m.ctrl,alt:m.alt,gui:m.gui,name:e,ch:true,mod:null};
+  return {u:e,s:m.shift,ctrl:m.ctrl,alt:m.alt,gui:m.gui,name:e,ch:false,mod:MODNAME[e]||null};
+}
+function charOf(u,shift,host){
+  if(u.length===1&&u>='A'&&u<='Z') return shift?u:u.toLowerCase();
+  if(u==='SPACE') return ' ';
+  const t=(host==='jis'?JIS:US)[u]; if(!t) return null; return t[shift?1:0]||null;
+}
+function same(a,b){ if(a===b) return true; const bs=['\\','¥']; return bs.includes(a)&&bs.includes(b); }
+
+function stripComments(t){return t.replace(/\/\*[\s\S]*?\*\//g,' ').replace(/\/\/[^\n]*/g,' ');}
+function matchBrace(t,open){let d=0;for(let i=open;i<t.length;i++){if(t[i]==='{')d++;else if(t[i]==='}'){d--;if(d===0)return i;}}return t.length;}
+function findNode(t,compat){const p=t.indexOf('"'+compat+'"');if(p<0)return null;const open=t.lastIndexOf('{',p);if(open<0)return null;return t.slice(open+1,matchBrace(t,open));}
+function children(body){const out=[];const re=/(?:([\w\-]+)\s*:\s*)?([A-Za-z_][\w\-]*)\s*\{/g;let m;while((m=re.exec(body))){const open=re.lastIndex-1;const close=matchBrace(body,open);out.push({name:m[2],body:body.slice(open+1,close)});re.lastIndex=close+1;}return out;}
+function propList(body,name){const m=new RegExp('(?:^|[^\\w-])'+name+'\\s*=\\s*([\\s\\S]*?);').exec(body);return m?m[1].replace(/[<>,]/g,' ').trim():null;}
+function propStr(body,name){const m=new RegExp('(?:^|[^\\w-])'+name+'\\s*=\\s*"([^"]*)"').exec(body);return m?m[1]:null;}
+function splitBindings(s){return s.split('&').map(x=>x.trim()).filter(Boolean).map(x=>'&'+x.replace(/\(\s*/g,'(').replace(/\s*\)/g,')').replace(/\s+/g,' '));}
+
+function parseKeymap(text){
+  const t=stripComments(text);
+  const defines={};let d;const dre=/#define\s+(\w+)\s+(\d+)\b/g;while((d=dre.exec(t)))defines[d[1]]=+d[2];
+  const kb=findNode(t,'zmk,keymap');
+  if(kb==null) throw new Error('keymap ノード（compatible = "zmk,keymap"）が見つかりませんでした。');
+  const layers=children(kb).filter(c=>propList(c.body,'bindings')!=null).map(c=>({id:c.name,name:propStr(c.body,'display-name')||propStr(c.body,'label')||c.name,raw:splitBindings(propList(c.body,'bindings'))}));
+  if(!layers.length) throw new Error('レイヤー（bindings = < … >;）が見つかりませんでした。');
+  const combos=[];const cb=findNode(t,'zmk,combos');
+  if(cb!=null)for(const c of children(cb)){const kp=propList(c.body,'key-positions');const b=propList(c.body,'bindings');if(!kp||!b)continue;combos.push({id:c.name,pos:kp.split(/\s+/).map(Number).filter(n=>!isNaN(n)),raw:splitBindings(b)[0]||'',layersRaw:propList(c.body,'layers')});}
+  const cond=[];const cl=findNode(t,'zmk,conditional-layers');
+  if(cl!=null)for(const c of children(cl)){const a=propList(c.body,'if-layers');const b=propList(c.body,'then-layer');if(a&&b)cond.push({id:c.name,ifsRaw:a,thenRaw:b});}
+  return {defines,layers,combos,cond};
+}
+function parseBinding(raw,lidx){
+  const parts=raw.slice(1).trim().split(' ');const beh=parts[0];const p=parts.slice(1);
+  const k={raw,beh,tap:null,holdMod:null,holdLayer:null,trans:false,none:false,other:null,params:p};
+  switch(beh){
+    case 'kp':{const t=resolveKey(p.join(' '));if(t.mod&&!t.s&&!t.ctrl&&!t.alt&&!t.gui)k.holdMod=t.mod;else k.tap=t;break;}
+    case 'mt':k.holdMod=MODNAME[p[0]]||null;k.tap=resolveKey(p.slice(1).join(' '));break;
+    case 'lt':k.holdLayer=lidx(p[0]);k.tap=resolveKey(p.slice(1).join(' '));break;
+    case 'mo':case 'sl':k.holdLayer=lidx(p[0]);break;
+    case 'sk':k.holdMod=MODNAME[p[0]]||null;break;
+    case 'trans':k.trans=true;break;
+    case 'none':k.none=true;break;
+    default:k.other=beh;
+  }
+  return k;
+}
+function buildModel(km){
+  const ids=km.layers.map(l=>l.id.toLowerCase());
+  const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
+  const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null}));
+  const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
+  return {layers,combos,cond};
+}
+function effKey(model,L,i){const k=model.layers[L].keys[i];if(k&&k.trans&&L>0)return model.layers[0].keys[i];return k;}
+function reachPaths(model){
+  const n=model.layers.length;const R=new Array(n).fill(null);R[0]=[];
+  const direct=(from,to,excl)=>{const ks=model.layers[from].keys;for(let i=0;i<ks.length;i++){const k=effKey(model,from,i);if(k&&k.holdLayer===to&&!excl.includes(i))return i;}return -1;};
+  for(let L=1;L<n;L++){const i=direct(0,L,[]);if(i>=0)R[L]=[i];}
+  for(const c of model.cond){if(c.then==null||c.then>=n||R[c.then])continue;const ps=[];let ok=c.ifs.length>0;for(const a of c.ifs){if(!R[a]||!R[a].length){ok=false;break;}ps.push(...R[a]);}if(ok)R[c.then]=[...new Set(ps)];}
+  for(let L=1;L<n;L++){if(R[L])continue;for(let A=1;A<n;A++){if(!R[A]||A===L)continue;const j=direct(A,L,R[A]);if(j>=0){R[L]=[...R[A],j];break;}}}
+  return R;
+}
+function findMod(model,L,mod,excl,side,geo){
+  let best=-1;const ks=model.layers[L].keys;
+  for(let i=0;i<ks.length;i++){if(excl.includes(i))continue;const k=effKey(model,L,i);if(k&&k.holdMod===mod){if(best<0)best=i;if(geo[i]&&side&&geo[i].side!==side){return i;}}}
+  return best;
+}
+function findChar(model,host,geo,c,R){
+  let best=null;const consider=x=>{if(!best||x.cost<best.cost)best=x;};
+  model.layers.forEach((layer,L)=>{
+    const reach=R[L];if(!reach)return;
+    layer.keys.forEach((k,i)=>{
+      if(L>0&&k.trans)return;if(reach.includes(i))return;
+      const t=k.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)return;
+      if(same(charOf(t.u,t.s,host),c))consider({layer:L,target:[i],hold:reach.slice(),mods:[],cost:reach.length*10+L*0.1});
+      else if(!t.s&&same(charOf(t.u,true,host),c)){const sh=findMod(model,L,'shift',[i,...reach],geo[i]&&geo[i].side,geo);if(sh>=0)consider({layer:L,target:[i],hold:reach.slice(),mods:[sh],cost:reach.length*10+25+L*0.1});}
+    });
+  });
+  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(same(charOf(t.u,t.s,host),c))consider({layer:0,target:cb.pos.slice(),hold:[],mods:[],cost:50,combo:true});}
+  return best;
+}
+function findShortcut(model,geo,R,item,mod){
+  const U=item.k.toUpperCase();let best=null;
+  model.layers.forEach((layer,L)=>{const reach=R[L];if(!reach)return;layer.keys.forEach((k,i)=>{if(L>0&&k.trans)return;const t=k.tap;if(!t)return;
+    const flags={ctrl:t.ctrl,gui:t.gui,alt:t.alt};if(t.u!==U||!flags[mod]||t.alt||(mod==='ctrl'?t.gui:t.ctrl)||!!t.s!==!!item.s)return;
+    const c={layer:L,target:[i],hold:reach.slice(),mods:[],cost:L+reach.length,dedicated:true};if(!best||c.cost<best.cost)best=c;});});
+  if(best)return best;
+  const ks=model.layers[0].keys;let li=-1;
+  for(let i=0;i<ks.length;i++){const t=ks[i].tap;if(t&&t.u===U&&!t.s&&!t.ctrl&&!t.gui&&!t.alt){li=i;break;}}
+  if(li<0)return null;
+  const side=geo[li]&&geo[li].side;const m=findMod(model,0,mod,[li],side,geo);if(m<0)return null;
+  const mods=[m];if(item.s){const s=findMod(model,0,'shift',[li,m],side,geo);if(s<0)return null;mods.push(s);}
+  return {layer:0,target:[li],hold:[],mods,cost:0};
+}
+function geometry(n){
+  const ST=[0.45,0.45,0.12,0,0.12,0.24],GAP=1.8,g=[];
+  for(let r=0;r<3;r++){for(let c=0;c<6;c++)g.push({x:c,y:r+ST[c],side:'L',col:c,row:r});for(let j=0;j<6;j++)g.push({x:6+GAP+j,y:r+ST[5-j],side:'R',col:5-j,row:r});}
+  const m=Math.max(0,n-36),nl=Math.floor(m/2),nr=m-nl;
+  for(let k=0;k<nl;k++){const th=k>=nl-3;const x=5.6-(nl-1-k)*1.04;const t=k-(nl-3);g.push({x,y:3.25+(th?t*0.24+0.12:0),rot:th?(t+1)*8:0,side:'L',col:Math.min(5,Math.max(0,Math.round(x))),thumb:th});}
+  for(let k=0;k<nr;k++){const th=k<3;const x=6+GAP+0.4+k*1.04;g.push({x,y:3.25+(th?(2-k)*0.24+0.12:0),rot:th?-(3-k)*8:0,side:'R',col:Math.min(5,Math.max(0,5-Math.round(x-6-GAP))),thumb:th});}
+  return g.slice(0,Math.max(n,0));
+}
+/* Keychron Launcher (VIA/QMK keycodes) import */
+const QK={};
+(function(){
+  for(let i=0;i<26;i++)QK[0x04+i]=LETTERS[i];
+  for(let i=0;i<10;i++)QK[0x1E+i]='N'+'1234567890'[i];
+  const seq=(start,names)=>names.split(' ').forEach((n,i)=>{QK[start+i]=n;});
+  seq(0x28,'ENTER ESC BSPC TAB SPACE MINUS EQUAL LBKT RBKT BSLH NUHS SEMI SQT GRAVE COMMA DOT FSLH CAPS');
+  for(let i=0;i<12;i++)QK[0x3A+i]='F'+(i+1);
+  seq(0x46,'PSCRN SLCK PAUSE_BREAK INS HOME PG_UP DEL END PG_DN RIGHT LEFT DOWN UP KP_NUM KP_SLASH KP_ASTERISK KP_MINUS KP_PLUS KP_ENTER KP_N1 KP_N2 KP_N3 KP_N4 KP_N5 KP_N6 KP_N7 KP_N8 KP_N9 KP_N0 KP_DOT NUBS K_APP');
+  for(let i=0;i<12;i++)QK[0x68+i]='F'+(13+i);
+  seq(0x87,'INT_RO INT_KANA INT_YEN INT_HENKAN INT_MUHENKAN');
+  seq(0x90,'LANG1 LANG2');
+  seq(0xA8,'C_MUTE C_VOL_UP C_VOL_DN C_NEXT C_PREV C_STOP C_PP');
+  seq(0xE0,'LCTRL LSHIFT LALT LGUI RCTRL RSHIFT RALT RGUI');
+})();
+const QMODL=['LCTRL','LSHIFT','LALT','LGUI'],QMODR=['RCTRL','RSHIFT','RALT','RGUI'],QWL=['LC','LS','LA','LG'],QWR=['RC','RS','RA','RG'];
+const hex=v=>'0x'+v.toString(16).toUpperCase();
+function qmkToZmk(v){
+  if(!v)return '&none';
+  if(v===1)return '&trans';
+  if(v<=0xFF){
+    if(v>=0xD1&&v<=0xD5)return '&mkp '+['LCLK','RCLK','MCLK','MB4','MB5'][v-0xD1];
+    if(v>=0xCD&&v<=0xD0)return '&mmv '+['UP','DOWN','LEFT','RIGHT'][v-0xCD];
+    if(v>=0xD9&&v<=0xDC)return '&msc '+['UP','DOWN','LEFT','RIGHT'][v-0xD9];
+    return QK[v]?'&kp '+QK[v]:'&qmk '+hex(v);
+  }
+  const firstMod=m=>{const r=m&0x10;const b=[0,1,2,3].find(b=>m&(1<<b));return (r?QMODR:QMODL)[b==null?0:b];};
+  if(v<=0x1FFF){const kc=v&0xFF,m=(v>>8)&0x1F,r=m&0x10;let s=QK[kc]||hex(kc);for(let b=3;b>=0;b--)if(m&(1<<b))s=(r?QWR:QWL)[b]+'('+s+')';return '&kp '+s;}
+  if(v<=0x3FFF)return '&mt '+firstMod((v>>8)&0x1F)+' '+(QK[v&0xFF]||'NONE');
+  if(v<=0x4FFF)return '&lt '+((v>>8)&0xF)+' '+(QK[v&0xFF]||'NONE');
+  if(v>=0x5200&&v<=0x521F)return '&to '+(v&0x1F);
+  if(v>=0x5220&&v<=0x523F)return '&mo '+(v&0x1F);
+  if(v>=0x5240&&v<=0x525F)return '&to '+(v&0x1F);
+  if(v>=0x5260&&v<=0x527F)return '&tog '+(v&0x1F);
+  if(v>=0x5280&&v<=0x529F)return '&sl '+(v&0x1F);
+  if(v>=0x52A0&&v<=0x52BF)return '&sk '+firstMod(v&0x1F);
+  if(v>=0x52C0&&v<=0x52DF)return '&mo '+(v&0x1F);
+  if(v===0x7C77)return '&mo 1';
+  if(v===0x7C78)return '&mo 2';
+  if(v>=0x7700&&v<=0x777F)return '&macro '+(v-0x7700);
+  if(v===0x7E07)return '&kp LALT';
+  if(v===0x7E09)return '&kp LGUI';
+  if(v>=0x7E00&&v<=0x7E3F)return '&kb '+hex(v);
+  return '&qmk '+hex(v);
+}
+function importLauncher(obj){
+  if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の JSON に keymap 配列が見つかりませんでした。');
+  const maps=obj.keymap.map(l=>new Map(l.map(e=>[e.row+','+e.col,e.val|0])));
+  const matrix=obj.keymap[0].map(e=>({row:e.row,col:e.col})).filter(p=>maps.some(m=>(m.get(p.row+','+p.col)||0)!==0));
+  let layers=maps.map((m,li)=>{const vals=matrix.map(p=>m.get(p.row+','+p.col)||0);return {id:'layer_'+li,name:'L'+li,raw:vals.map(qmkToZmk),vals};});
+  const tri=layers.some(l=>l.vals.some(v=>v===0x7C77||v===0x7C78));
+  let last=layers.length-1;while(last>0&&layers[last].vals.every(v=>v<=1)&&!(tri&&last<=3))last--;
+  layers=layers.slice(0,last+1);
+  const nm=tri?['ベース','Fn1','Fn2','Fn3']:['ベース'];
+  layers.forEach((l,i)=>{if(nm[i])l.name=nm[i];delete l.vals;});
+  return {defines:{},layers,combos:[],cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
+}
+/* Orca echo physical layout, traced from Keychron Launcher (pixel centres, 82px = 1u). Matrix 4×14: left cols 0-6, right cols 7-13. */
+const OE_PX=82;
+const OE_BASE={0:261,1:261,2:240,3:219,4:240,5:248,6:248,7:253,8:253,9:240,10:219,11:240,12:261,13:261};
+const OE_X={0:350,1:432,2:514,3:596,4:678,5:760,6:842,7:1006,8:1088,9:1170,10:1252,11:1334,12:1416,13:1498};
+const OE_FINGER={0:'小指',1:'小指',2:'薬指',3:'中指',4:'人差し指',5:'人差し指',6:'人差し指',7:'人差し指',8:'人差し指',9:'人差し指',10:'中指',11:'薬指',12:'小指',13:'小指'};
+const OE_DECO=[
+  {t:'body',d:'M293 150 L899 150 Q909 150 909 160 L909 470 L878 612 Q875 622 865 620 L690 585 L293 582 Q283 582 283 572 L283 160 Q283 150 293 150 Z'},
+  {t:'body',d:'M948 150 L1555 150 Q1565 150 1565 160 L1565 572 Q1565 582 1555 582 L1180 585 L995 620 Q985 622 982 612 L938 470 L938 160 Q938 150 948 150 Z'},
+  {t:'wheel',x:847,y:512,w:44,h:84,rot:15},
+  {t:'ball',x:1040,y:522,r:33}
+];
+function launcherGeometry(matrix){
+  return matrix.map(({row:r,col:c},n)=>{
+    const side=c<=6?'L':'R';
+    if(OE_X[c]==null)return {x:(n%14),y:9+Math.floor(n/14),side,finger:'',aux:true};
+    let px=OE_X[c],py=OE_BASE[c]+84*r,h=1,rot=0,thumb=false;
+    if(r===0&&(c===6||c===7)){py=c===6?290:295;h=160/74;}
+    if(r===3&&c===5){px=775;py=512;rot=15;}
+    if(r===3&&(c===3||c===4||c===5||c===9||c===10))thumb=true;
+    return {x:px/OE_PX,y:py/OE_PX,h,rot,side,thumb,finger:thumb?'親指':OE_FINGER[c]};
+  });
+}
+/* compact form used by the shared keymap database: layers of 56 values (4 rows × 14 cols) */
+function toLauncher(layers){return {keymap:layers.map(l=>l.map((v,i)=>({row:Math.floor(i/14),col:i%14,val:v|0})))};}
+function fromLauncherObj(obj){
+  if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の書き出しファイルではないようです。');
+  let big=false;
+  const maps=obj.keymap.map(l=>{const a=new Array(56).fill(0);for(const e of l){if(e.row>3||e.col>13){if(e.val)big=true;continue;}a[e.row*14+e.col]=e.val|0;}return a;});
+  if(big)throw new Error('Orca echo（4段×14列）の書き出しファイルではないようです。');
+  let last=maps.length-1;while(last>0&&maps[last].every(v=>v<=1))last--;
+  if(maps.some(a=>a.some(v=>v===0x7C77||v===0x7C78)))last=Math.max(last,Math.min(3,maps.length-1));
+  return maps.slice(0,last+1);
+}
+const SUPA={url:"",key:""};
+async function supaFetch(path,opt){
+  if(!SUPA.url)throw new Error('データベースが未設定です');
+  const r=await fetch(SUPA.url+'/rest/v1/'+path,Object.assign({},opt,{headers:Object.assign({apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json'},(opt&&opt.headers)||{})}));
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.hint))||('HTTP '+r.status));
+  return j;
+}
+/* Romaji */
+const KANA={'あ':['a'],'い':['i','yi'],'う':['u','wu','whu'],'え':['e'],'お':['o'],
+'か':['ka','ca'],'き':['ki'],'く':['ku','cu','qu'],'け':['ke'],'こ':['ko','co'],
+'さ':['sa'],'し':['shi','si','ci'],'す':['su'],'せ':['se','ce'],'そ':['so'],
+'た':['ta'],'ち':['chi','ti'],'つ':['tsu','tu'],'て':['te'],'と':['to'],
+'な':['na'],'に':['ni'],'ぬ':['nu'],'ね':['ne'],'の':['no'],
+'は':['ha'],'ひ':['hi'],'ふ':['fu','hu'],'へ':['he'],'ほ':['ho'],
+'ま':['ma'],'み':['mi'],'む':['mu'],'め':['me'],'も':['mo'],
+'や':['ya'],'ゆ':['yu'],'よ':['yo'],'ら':['ra'],'り':['ri'],'る':['ru'],'れ':['re'],'ろ':['ro'],
+'わ':['wa'],'を':['wo'],
+'が':['ga'],'ぎ':['gi'],'ぐ':['gu'],'げ':['ge'],'ご':['go'],
+'ざ':['za'],'じ':['ji','zi'],'ず':['zu'],'ぜ':['ze'],'ぞ':['zo'],
+'だ':['da'],'ぢ':['di'],'づ':['du'],'で':['de'],'ど':['do'],
+'ば':['ba'],'び':['bi'],'ぶ':['bu'],'べ':['be'],'ぼ':['bo'],
+'ぱ':['pa'],'ぴ':['pi'],'ぷ':['pu'],'ぺ':['pe'],'ぽ':['po'],
+'ぁ':['xa','la'],'ぃ':['xi','li'],'ぅ':['xu','lu'],'ぇ':['xe','le'],'ぉ':['xo','lo'],
+'ゃ':['xya','lya'],'ゅ':['xyu','lyu'],'ょ':['xyo','lyo'],'っ':['xtu','ltu','xtsu','ltsu'],'ゔ':['vu'],
+'ー':['-'],'、':[','],'。':['.'],'・':['/'],'？':['?'],'！':['!'],'　':[' ']};
+const TWO={};
+(function(){
+  const comp=(a,b)=>KANA[a].flatMap(x=>KANA[b].map(y=>x+y));
+  const YO={'ゃ':'a','ゅ':'u','ょ':'o'};
+  const YB={'き':['ky'],'ぎ':['gy'],'し':['sh','sy'],'じ':['j','jy','zy'],'ち':['ch','ty','cy'],'ぢ':['dy'],'に':['ny'],'ひ':['hy'],'び':['by'],'ぴ':['py'],'み':['my'],'り':['ry']};
+  for(const b in YB)for(const s in YO)TWO[b+s]=[...new Set([...YB[b].map(p=>p+YO[s]),...comp(b,s)])];
+  const SP={'ふぁ':['fa'],'ふぃ':['fi'],'ふぇ':['fe'],'ふぉ':['fo'],'うぃ':['wi','whi'],'うぇ':['we','whe'],'うぉ':['who'],'てぃ':['thi'],'でぃ':['dhi'],
+    'しぇ':['she','sye'],'ちぇ':['che','tye','cye'],'じぇ':['je','zye','jye'],'ゔぁ':['va'],'ゔぃ':['vi'],'ゔぇ':['ve'],'ゔぉ':['vo'],'とぅ':['twu'],'どぅ':['dwu']};
+  for(const k in SP)TWO[k]=[...new Set([...SP[k],...comp(k[0],k[1])])];
+})();
+function tokenizeKana(s){
+  const u=[];let i=0;
+  while(i<s.length){const two=s.substr(i,2);if(TWO[two]){u.push({k:two,o:TWO[two]});i+=2;continue;}
+    const ch=s[i];if(ch==='ん'){u.push({k:ch,o:null});i++;continue;}
+    u.push({k:ch,o:KANA[ch]||[ch]});i++;}
+  for(let j=0;j<u.length;j++){if(u[j].k!=='っ')continue;const nx=u[j+1];if(!nx||!nx.o||nx.k==='っ')continue;
+    const dbl=[];for(const o of nx.o){if(/^[bcdfghjkmpqrstvwxyz]/.test(o)){dbl.push(o[0]+o);if(o.startsWith('ch'))dbl.push('t'+o);}}
+    const sm=KANA['っ'].flatMap(a=>nx.o.map(b=>a+b));u.splice(j,2,{k:'っ'+nx.k,o:[...new Set([...dbl,...sm])]});}
+  for(let j=0;j<u.length;j++){if(u[j].k!=='ん')continue;const nx=u[j+1];
+    const single=!!nx&&nx.k!=='ん'&&!!nx.o&&nx.o.every(o=>!/^[aiueony]/.test(o));u[j].o=single?['n','nn','xn']:['nn','xn'];}
+  return u;
+}
+class RomajiTyper{
+  constructor(kana){this.units=tokenizeKana(kana);this.idx=0;this.buf='';this.typed='';}
+  done(){return this.idx>=this.units.length;}
+  adv(){this.idx++;this.buf='';}
+  input(ch){if(this.done())return false;const u=this.units[this.idx];const nb=this.buf+ch;const c=u.o.filter(o=>o.startsWith(nb));
+    if(c.length){this.buf=nb;this.typed+=ch;if(c.length===1&&c[0]===nb)this.adv();return true;}
+    if(u.o.includes(this.buf)){this.adv();return this.input(ch);}
+    return false;}
+  skip(){if(this.done())return;const u=this.units[this.idx];const o=u.o.find(x=>x.startsWith(this.buf))||u.o[0];this.typed+=o.slice(this.buf.length);this.adv();}
+  rest(){if(this.done())return '';const u=this.units[this.idx];const cur=(u.o.find(o=>o.startsWith(this.buf))||u.o[0]).slice(this.buf.length);
+    if(!cur&&u.o.includes(this.buf)){return this.units.slice(this.idx+1).map(x=>x.o[0]).join('');}
+    return cur+this.units.slice(this.idx+1).map(x=>x.o[0]).join('');}
+}
+
+
+const DEFAULT_KM="{\"id\":875824269,\"keymap\":[[{\"col\":0,\"row\":0,\"val\":41},{\"col\":1,\"row\":0,\"val\":20},{\"col\":2,\"row\":0,\"val\":26},{\"col\":3,\"row\":0,\"val\":8},{\"col\":4,\"row\":0,\"val\":21},{\"col\":5,\"row\":0,\"val\":23},{\"col\":6,\"row\":0,\"val\":209},{\"col\":7,\"row\":0,\"val\":209},{\"col\":8,\"row\":0,\"val\":28},{\"col\":9,\"row\":0,\"val\":24},{\"col\":10,\"row\":0,\"val\":12},{\"col\":11,\"row\":0,\"val\":18},{\"col\":12,\"row\":0,\"val\":19},{\"col\":13,\"row\":0,\"val\":45},{\"col\":0,\"row\":1,\"val\":43},{\"col\":1,\"row\":1,\"val\":4},{\"col\":2,\"row\":1,\"val\":22},{\"col\":3,\"row\":1,\"val\":7},{\"col\":4,\"row\":1,\"val\":9},{\"col\":5,\"row\":1,\"val\":10},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":11},{\"col\":9,\"row\":1,\"val\":13},{\"col\":10,\"row\":1,\"val\":14},{\"col\":11,\"row\":1,\"val\":15},{\"col\":12,\"row\":1,\"val\":51},{\"col\":13,\"row\":1,\"val\":40},{\"col\":0,\"row\":2,\"val\":225},{\"col\":1,\"row\":2,\"val\":29},{\"col\":2,\"row\":2,\"val\":27},{\"col\":3,\"row\":2,\"val\":6},{\"col\":4,\"row\":2,\"val\":25},{\"col\":5,\"row\":2,\"val\":5},{\"col\":6,\"row\":2,\"val\":31864},{\"col\":7,\"row\":2,\"val\":5},{\"col\":8,\"row\":2,\"val\":17},{\"col\":9,\"row\":2,\"val\":16},{\"col\":10,\"row\":2,\"val\":54},{\"col\":11,\"row\":2,\"val\":55},{\"col\":12,\"row\":2,\"val\":550},{\"col\":13,\"row\":2,\"val\":551},{\"col\":0,\"row\":3,\"val\":224},{\"col\":1,\"row\":3,\"val\":32263},{\"col\":2,\"row\":3,\"val\":32265},{\"col\":3,\"row\":3,\"val\":145},{\"col\":4,\"row\":3,\"val\":31863},{\"col\":5,\"row\":3,\"val\":44},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":42},{\"col\":10,\"row\":3,\"val\":144},{\"col\":11,\"row\":3,\"val\":30465},{\"col\":12,\"row\":3,\"val\":30466},{\"col\":13,\"row\":3,\"val\":30467}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":82},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":211},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":36},{\"col\":12,\"row\":0,\"val\":37},{\"col\":13,\"row\":0,\"val\":38},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":80},{\"col\":3,\"row\":1,\"val\":81},{\"col\":4,\"row\":1,\"val\":79},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":209},{\"col\":10,\"row\":1,\"val\":210},{\"col\":11,\"row\":1,\"val\":33},{\"col\":12,\"row\":1,\"val\":34},{\"col\":13,\"row\":1,\"val\":35},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":30},{\"col\":12,\"row\":2,\"val\":31},{\"col\":13,\"row\":2,\"val\":32},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":39},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":548},{\"col\":12,\"row\":0,\"val\":549},{\"col\":13,\"row\":0,\"val\":568},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":545},{\"col\":12,\"row\":1,\"val\":546},{\"col\":13,\"row\":1,\"val\":547},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":542},{\"col\":12,\"row\":2,\"val\":543},{\"col\":13,\"row\":2,\"val\":544},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":47},{\"col\":13,\"row\":2,\"val\":48},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}],[{\"col\":0,\"row\":0,\"val\":1},{\"col\":1,\"row\":0,\"val\":1},{\"col\":2,\"row\":0,\"val\":1},{\"col\":3,\"row\":0,\"val\":1},{\"col\":4,\"row\":0,\"val\":1},{\"col\":5,\"row\":0,\"val\":1},{\"col\":6,\"row\":0,\"val\":1},{\"col\":7,\"row\":0,\"val\":1},{\"col\":8,\"row\":0,\"val\":1},{\"col\":9,\"row\":0,\"val\":1},{\"col\":10,\"row\":0,\"val\":1},{\"col\":11,\"row\":0,\"val\":1},{\"col\":12,\"row\":0,\"val\":1},{\"col\":13,\"row\":0,\"val\":1},{\"col\":0,\"row\":1,\"val\":1},{\"col\":1,\"row\":1,\"val\":1},{\"col\":2,\"row\":1,\"val\":1},{\"col\":3,\"row\":1,\"val\":1},{\"col\":4,\"row\":1,\"val\":1},{\"col\":5,\"row\":1,\"val\":1},{\"col\":6,\"row\":1,\"val\":0},{\"col\":7,\"row\":1,\"val\":0},{\"col\":8,\"row\":1,\"val\":1},{\"col\":9,\"row\":1,\"val\":1},{\"col\":10,\"row\":1,\"val\":1},{\"col\":11,\"row\":1,\"val\":1},{\"col\":12,\"row\":1,\"val\":1},{\"col\":13,\"row\":1,\"val\":1},{\"col\":0,\"row\":2,\"val\":1},{\"col\":1,\"row\":2,\"val\":1},{\"col\":2,\"row\":2,\"val\":1},{\"col\":3,\"row\":2,\"val\":1},{\"col\":4,\"row\":2,\"val\":1},{\"col\":5,\"row\":2,\"val\":1},{\"col\":6,\"row\":2,\"val\":1},{\"col\":7,\"row\":2,\"val\":1},{\"col\":8,\"row\":2,\"val\":1},{\"col\":9,\"row\":2,\"val\":1},{\"col\":10,\"row\":2,\"val\":1},{\"col\":11,\"row\":2,\"val\":1},{\"col\":12,\"row\":2,\"val\":1},{\"col\":13,\"row\":2,\"val\":1},{\"col\":0,\"row\":3,\"val\":1},{\"col\":1,\"row\":3,\"val\":1},{\"col\":2,\"row\":3,\"val\":1},{\"col\":3,\"row\":3,\"val\":1},{\"col\":4,\"row\":3,\"val\":1},{\"col\":5,\"row\":3,\"val\":1},{\"col\":6,\"row\":3,\"val\":0},{\"col\":7,\"row\":3,\"val\":0},{\"col\":8,\"row\":3,\"val\":0},{\"col\":9,\"row\":3,\"val\":1},{\"col\":10,\"row\":3,\"val\":1},{\"col\":11,\"row\":3,\"val\":1},{\"col\":12,\"row\":3,\"val\":1},{\"col\":13,\"row\":3,\"val\":1}]],\"version\":\"1.0.0\",\"MD5\":\"0443fd6862970bcc2ad77839597cda63\",\"knob\":[{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_MS_WH_UP\",\"right\":\"KC_MS_WH_DOWN\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"},{\"left\":\"KC_NO\",\"right\":\"KC_NO\"}]}";
+
+/* ---- page state ---- */
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem('oet:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('oet:'+k,JSON.stringify(v));}catch(e){}}};
+const S={host:store.get('host','jis'),mod:store.get('mod','gui'),model:null};
+const P={rows:[],loaded:false,error:null,tLayer:0,tSel:null,dLayer:0,simRef:null,post:null,phost:store.get('host','jis')};
+/* labels */
+function tapLabel(t){
+  let base;
+  if(t.ch){const c=charOf(t.u,t.s,S.host);base=c==null?(t.u==='GRAVE'&&S.host==='jis'?'半/全':t.u):(c===' '?'Space':(/[a-z]/.test(c)&&c.length===1?c.toUpperCase():c));}
+  else if(t.mod)base=MODLABEL[t.mod];
+  else if(/^F\d+$/.test(t.u))base=t.u;
+  else base=NONCHAR[t.u]||t.u.replace(/^C_/,'');
+  return (t.ctrl?(S.mod==='gui'?'Ctrl+':'^'):'')+(t.gui?'⌘':'')+(t.alt?'⌥':'')+base;
+}
+function lname(L){const l=S.model.layers[L];return l?l.name:'L'+L;}
+function labelOf(k){
+  if(!k)return{m:'',s:''};
+  if(k.none)return{m:'·',s:''};
+  switch(k.beh){
+    case 'kp':return k.holdMod?{m:MODLABEL[k.holdMod],s:''}:{m:tapLabel(k.tap),s:''};
+    case 'mt':return{m:tapLabel(k.tap),s:k.holdMod?MODLABEL[k.holdMod]:''};
+    case 'lt':return{m:tapLabel(k.tap),s:lname(k.holdLayer)};
+    case 'mo':return{m:lname(k.holdLayer),s:'hold'};
+    case 'sl':return{m:lname(k.holdLayer),s:'sticky'};
+    case 'sk':return{m:k.holdMod?MODLABEL[k.holdMod]:'sk',s:'sticky'};
+    case 'to':case 'tog':return{m:(k.params[0]!=null?lname(+k.params[0])||k.params[0]:''),s:k.beh};
+    case 'bt':return{m:'BT',s:(k.params||[]).join(' ').replace('BT_','').toLowerCase()};
+    case 'mkp':return{m:{LCLK:'Click',RCLK:'R-Clk',MCLK:'M-Clk'}[k.params[0]]||'Mouse',s:''};
+    case 'msc':return{m:'Scroll',s:(k.params[0]||'').toLowerCase()};
+    case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
+    case 'macro':return{m:'M'+(k.params[0]||''),s:'macro'};
+    case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'qmk':return{m:'?',s:(k.params[0]||'')};
+    default:return{m:k.beh,s:''};
+  }
+}
+
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const mine=()=>store.get('mine',{});
+const LNAME=['ベース','Fn1','Fn2','Fn3','L4','L5','L6','L7'];
+const ROWW=['上段','中段','下段','最下段'];
+const THUMBS={'3,3':1,'3,4':1,'3,5':1,'3,9':1,'3,10':1};
+function posWords(p){const r=Math.floor(p/14),c=p%14;return (c<=6?'左':'右')+(THUMBS[r+','+c]?'親指':OE_FINGER[c])+' '+ROWW[r];}
+
+function prep(rec){
+  const km=importLauncher(toLauncher(rec.layers));const model=buildModel(km);
+  return Object.assign(rec,{km,model,geo:launcherGeometry(km.matrix),R:reachPaths(model),pos:km.matrix.map(p=>p.row*14+p.col)});
+}
+const CANON=prep({layers:fromLauncherObj(JSON.parse(DEFAULT_KM))});
+
+/* ---- board drawing (same geometry as the typing page) ---- */
+const U=58,KW=52,NS='http://www.w3.org/2000/svg';
+function drawBoard(svg,geo,cells,onClick){
+  svg.innerHTML='';const k=U/OE_PX,pad=U*0.2;
+  const x0=283/OE_PX*U,y0=150/OE_PX*U,w=(1565-283)/OE_PX*U,h=(622-150)/OE_PX*U;
+  svg.setAttribute('viewBox',`${x0-pad} ${y0-pad} ${w+pad*2} ${h+pad*2}`);
+  const dg=document.createElementNS(NS,'g');dg.setAttribute('transform',`scale(${k})`);
+  dg.innerHTML=OE_DECO.map(d=>d.t==='body'?`<path class="body" d="${d.d}"/>`:
+    d.t==='ball'?`<circle class="ball" cx="${d.x}" cy="${d.y}" r="${d.r}"/><circle class="ball-hl" cx="${d.x-9}" cy="${d.y-10}" r="${d.r*0.32}"/>`:
+    `<g transform="translate(${d.x} ${d.y}) rotate(${d.rot})"><rect class="wheel" x="${-d.w/2}" y="${-d.h/2}" width="${d.w}" height="${d.h}" rx="9"/>${[-24,-12,0,12,24].map(y=>`<line class="wheel-l" x1="${-d.w/2+8}" x2="${d.w/2-8}" y1="${y}" y2="${y}"/>`).join('')}</g>`).join('');
+  svg.appendChild(dg);
+  geo.forEach((p,i)=>{
+    const c=cells(i)||{};const g=document.createElementNS(NS,'g');
+    g.setAttribute('class','key'+(c.cls?' '+c.cls:'')+(onClick?' click':''));
+    g.setAttribute('transform',`translate(${(p.x*U).toFixed(1)} ${(p.y*U).toFixed(1)}) rotate(${p.rot||0})`);
+    const H=KW*(p.h||1),hw=KW/2,hh=H/2;
+    const m=c.m||'',len=[...m].length,fs=len<=1?18:len<=2?15:len<=4?12:10;
+    g.innerHTML=`<rect class="cap" x="${-hw}" y="${-hh}" width="${KW}" height="${H}" rx="9"/>`+
+      (c.heat?`<rect class="heat" x="${-hw}" y="${-hh}" width="${KW}" height="${H}" rx="9" opacity="${(0.12+c.heat*0.68).toFixed(2)}"/>`:'')+
+      `<text class="m" y="${c.s?1:5}" font-size="${fs}"></text><text class="s" y="19"></text>`;
+    g.querySelector('.m').textContent=m;g.querySelector('.s').textContent=c.s||'';
+    if(onClick){g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',(m||'キー')+' '+(c.s||''));
+      g.addEventListener('click',()=>onClick(i));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClick(i);}});}
+    svg.appendChild(g);
+  });
+}
+function recCells(rec,L){
+  return i=>{S.model=rec.model;const k=rec.model.layers[L]&&rec.model.layers[L].keys[i];if(!k)return {};
+    const trans=k.trans&&L>0;const lab=labelOf(trans?rec.model.layers[0].keys[i]:k);
+    return {m:lab.m,s:trans?'':lab.s,cls:trans?'trans':''};};
+}
+function layerChips(box,n,cur,on){
+  box.innerHTML=Array.from({length:n},(_,i)=>`<button class="chip${i===cur?' on':''}" data-l="${i}">${LNAME[i]||'L'+i}</button>`).join('');
+  box.onclick=e=>{const b=e.target.closest('button[data-l]');if(b)on(+b.dataset.l);};
+}
+
+/* ---- data ---- */
+async function loadAll(){
+  const st=$('#gstatus');
+  if(!SUPA.url){P.error='データベースの準備中です。投稿と集計はもう少しで使えるようになります。';st.className='status';st.textContent=P.error;P.loaded=true;route();return;}
+  st.className='status muted';st.textContent='読み込み中…';
+  const timer=setTimeout(()=>{if(!P.loaded){st.textContent='読み込みに時間がかかっています…';}},10000);
+  try{
+    const rows=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers&order=created_at.desc&limit=1000');
+    P.rows=[];for(const r of rows||[]){try{P.rows.push(prep(r));}catch(e){}}
+    P.loaded=true;P.error=null;st.textContent='';
+  }catch(e){P.loaded=true;P.error='読み込めませんでした: '+e.message;st.className='status err';st.textContent=P.error;}
+  clearTimeout(timer);route();
+}
+
+/* ---- list ---- */
+function fmtDate(s){try{const d=new Date(s);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}catch(e){return '';}}
+function renderList(){
+  const q=($('#q').value||'').trim().toLowerCase();const my=mine();
+  const rows=P.rows.filter(r=>!q||r.name.toLowerCase().includes(q)||(r.comment||'').toLowerCase().includes(q));
+  $('#count').textContent=P.rows.length?`${P.rows.length} 件の配列`:'';
+  const grid=$('#grid');
+  if(!P.rows.length){grid.innerHTML=`<div class="empty panel" style="grid-column:1/-1"><b>${P.error?esc(P.error):'まだ投稿がありません'}</b>${P.error?'':'最初の1人になりませんか？ <a href="#post" style="color:var(--accent)">配列を投稿する</a>'}</div>`;return;}
+  grid.innerHTML=rows.map(r=>`<a class="card" href="#km-${r.id}"><div class="meta"><span class="nm"></span><span class="badge${my[r.id]?' mine':''}">${my[r.id]?'自分':r.host.toUpperCase()}</span></div><div class="board"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg></div><div class="cm"></div><span class="muted small">${fmtDate(r.created_at)}</span></a>`).join('')||'<p class="note">該当する配列がありません。</p>';
+  [...grid.querySelectorAll('.card')].forEach((el,i)=>{const r=rows[i];el.querySelector('.nm').textContent=r.name;el.querySelector('.cm').textContent=r.comment||'';drawBoard(el.querySelector('svg'),r.geo,recCells(r,0));});
+}
+
+/* ---- trends: most common binding per position ---- */
+function trendData(L){
+  const out={};
+  for(const p of CANON.pos){
+    const cnt=new Map();let tot=0;
+    for(const r of P.rows){const i=r.pos.indexOf(p);if(i<0)continue;const lay=r.model.layers[L];if(!lay)continue;const k=lay.keys[i];if(!k)continue;
+      const raw=(k.trans&&L>0)?'&trans':k.raw;tot++;const e=cnt.get(raw)||{n:0,rec:r,i};e.n++;cnt.set(raw,e);}
+    const list=[...cnt.entries()].map(([raw,e])=>({raw,n:e.n,rec:e.rec,i:e.i})).sort((a,b)=>b.n-a.n);
+    out[p]={tot,list};
+  }
+  return out;
+}
+function entryLabel(e,L){if(e.raw==='&trans')return {m:'▽',s:'下と同じ'};if(e.raw==='&none')return {m:'·',s:'なし'};S.model=e.rec.model;return labelOf(e.rec.model.layers[L].keys[e.i]);}
+function renderTrends(){
+  const n=P.rows.length;$('#tcount').textContent=n?`${n} 件から集計`:'';
+  const maxL=Math.max(1,...P.rows.map(r=>r.model.layers.length));
+  layerChips($('#tchips'),Math.min(maxL,4),P.tLayer,l=>{P.tLayer=l;P.tSel=null;renderTrends();});
+  const svg=$('#tboard svg');
+  if(!n){drawBoard(svg,CANON.geo,()=>({}));$('#tdist').innerHTML=`<p class="note small">${P.error?esc(P.error):'投稿が集まると、ここに集計が出ます。'}</p>`;return;}
+  const td=trendData(P.tLayer);
+  drawBoard(svg,CANON.geo,i=>{const p=CANON.pos[i],d=td[p];if(!d||!d.tot||!d.list.length)return {};const top=d.list[0],share=top.n/d.tot,lab=entryLabel(top,P.tLayer);
+    return {m:lab.m,s:Math.round(share*100)+'%',heat:top.raw==='&trans'?0:share,cls:(top.raw==='&trans'?'trans':'')+(P.tSel===i?' sel':'')+(share>=.6?' hot':'')};},
+    i=>{P.tSel=i;renderTrends();});
+  if(P.tSel!=null){const p=CANON.pos[P.tSel],d=td[p];
+    $('#tdh').textContent=`${LNAME[P.tLayer]} · ${posWords(p)}`;
+    $('#tdist').innerHTML=d&&d.tot?d.list.slice(0,10).map(e=>{const lab=entryLabel(e,P.tLayer);const pc=Math.round(e.n/d.tot*100);return `<div class="drow"><span class="lb"><b>${esc(lab.m)}</b><span class="muted small">${esc(lab.s||'')} ${e.n}人</span></span><span class="pct">${pc}%</span><span class="bar"><i style="width:${pc}%"></i></span></div>`;}).join(''):'<p class="note small">データがありません。</p>';}
+}
+
+/* ---- symbols ---- */
+const NUMS='1234567890',SYMS='!@#$%^&*()-_=+[]{};:\'",.<>/?\\|`~';
+const LCOL=['var(--l0)','var(--l1)','var(--l2)','var(--l3)','var(--lx)'];
+function placeOf(r,c){const g=findChar(r.model,r.host,r.geo,c,r.R);if(!g)return null;return {layer:g.layer,p:r.pos[g.target[0]],shift:g.mods.length>0,combo:!!g.combo};}
+function placeKey(pl){return pl?`${pl.layer}:${pl.p}:${pl.shift?1:0}`:'none';}
+function placeText(pl){return pl?`${LNAME[pl.layer]||'L'+pl.layer}${pl.shift?'＋⇧':''} · ${posWords(pl.p)}`:'置いていない';}
+function renderSymbols(){
+  const n=P.rows.length;$('#scount').textContent=n?`${n} 件から集計`:'';
+  const tb=$('#stable tbody');
+  $('#slegend').innerHTML=['ベース','Fn1','Fn2','Fn3','その他','なし'].map((t,i)=>`<span><i class="sw" style="background:${i<5?LCOL[i]:'var(--lnone)'}"></i>${t}</span>`).join('');
+  if(!n){tb.innerHTML=`<tr><td colspan="4" class="muted">${P.error?esc(P.error):'投稿が集まると、ここに集計が出ます。'}</td></tr>`;$('#ssum').innerHTML='';return;}
+  const pls=P.rows.map(r=>{const m={};for(const c of NUMS+SYMS)m[c]=placeOf(r,c);return m;});
+  const groupMode=chars=>{const cnt={};for(const m of pls){const lc={};for(const c of chars){const pl=m[c];if(pl)lc[pl.layer]=(lc[pl.layer]||0)+1;}const best=Object.entries(lc).sort((a,b)=>b[1]-a[1])[0];const k=best?best[0]:'none';cnt[k]=(cnt[k]||0)+1;}return Object.entries(cnt).sort((a,b)=>b[1]-a[1]);};
+  const sumCard=(title,chars)=>{const gm=groupMode(chars);const [k,v]=gm[0];return `<div class="sum"><div class="muted small">${title}をまとめて置いているレイヤー</div><div class="big">${k==='none'?'なし':(LNAME[k]||'L'+k)}<small>${Math.round(v/n*100)}%</small></div><div class="muted small">${gm.slice(1,3).map(([k2,v2])=>`${k2==='none'?'なし':(LNAME[k2]||'L'+k2)} ${Math.round(v2/n*100)}%`).join(' · ')}</div></div>`;};
+  $('#ssum').innerHTML=sumCard('数字',NUMS)+sumCard('記号',SYMS);
+  tb.innerHTML=[...NUMS+SYMS].map(c=>{
+    const cnt=new Map(),byL=[0,0,0,0,0,0];
+    for(const m of pls){const pl=m[c];const k=placeKey(pl);const e=cnt.get(k)||{n:0,pl};e.n++;cnt.set(k,e);byL[pl?Math.min(pl.layer,4):5]++;}
+    const top=[...cnt.values()].sort((a,b)=>b.n-a.n)[0];
+    const stack=byL.map((v,i)=>v?`<i style="width:${v/n*100}%;background:${i<5?LCOL[i]:'var(--lnone)'}" title="${['ベース','Fn1','Fn2','Fn3','その他','なし'][i]} ${Math.round(v/n*100)}%"></i>`:'').join('');
+    return `<tr><td class="ch">${esc(c)}</td><td>${esc(placeText(top.pl))}</td><td class="pct">${Math.round(top.n/n*100)}%</td><td><div class="stack">${stack}</div></td></tr>`;
+  }).join('');
+}
+
+/* ---- similar ---- */
+const SIMCHARS='abcdefghijklmnopqrstuvwxyz'+NUMS+SYMS;
+function vec(r){const v={};for(const c of SIMCHARS)v[c]=placeKey(placeOf(r,c));return v;}
+function simScore(a,b){let m=0,t=0;for(const c of SIMCHARS){if(a[c]==='none'&&b[c]==='none')continue;t++;if(a[c]===b[c])m++;}return t?m/t:0;}
+function renderSimilar(){
+  const sel=$('#simsel');const my=mine();
+  const opts=P.rows.map(r=>`<option value="${r.id}">${my[r.id]?'（自分）':''}${esc(r.name)}</option>`).join('');
+  sel.innerHTML=(P.simRef&&P.simRef.local?'<option value="__local">読み込んだ JSON</option>':'')+(opts||'<option value="">投稿がまだありません</option>');
+  if(P.simRef)sel.value=P.simRef.local?'__local':P.simRef.id;
+  const rank=$('#rank');
+  if(!P.simRef){const firstMine=P.rows.find(r=>my[r.id]);if(firstMine){P.simRef=firstMine;sel.value=firstMine.id;}else if(P.rows[0]){P.simRef=P.rows[0];sel.value=P.rows[0].id;}}
+  if(!P.simRef||!P.rows.length){rank.innerHTML=`<div class="empty panel"><b>${P.error?esc(P.error):'比べる配列がまだありません'}</b></div>`;return;}
+  const rv=vec(P.simRef);
+  const list=P.rows.filter(r=>r.id!==P.simRef.id).map(r=>({r,sc:simScore(rv,vec(r))})).sort((a,b)=>b.sc-a.sc).slice(0,20);
+  rank.innerHTML=list.length?list.map((x,i)=>`<div class="rk"><span class="no">${i+1}</span><span class="nm"></span><span class="sc">${Math.round(x.sc*100)}<span class="muted small">%</span></span><span class="acts"><a href="#km-${x.r.id}">配列を見る</a><a href="./?id=${x.r.id}">この配列で練習</a></span></div>`).join(''):'<p class="note">ほかの投稿がまだありません。</p>';
+  [...rank.querySelectorAll('.rk .nm')].forEach((el,i)=>{el.textContent=list[i].r.name;});
+}
+
+/* ---- post ---- */
+function setPost(text,from){
+  const st=$('#pstatus');
+  try{const obj=JSON.parse(text);const layers=fromLauncherObj(obj);const rec=prep({layers,name:'',host:P.phost});P.post=rec;
+    $('#pboard').hidden=false;drawBoard($('#pboard svg'),rec.geo,recCells(rec,0));
+    st.className='status ok';st.textContent=(from||'JSON')+'を読み込みました（'+layers.length+'レイヤー）。ニックネームを入れて投稿できます。';
+  }catch(e){P.post=null;$('#pboard').hidden=true;st.className='status err';st.textContent=e.message.startsWith('Unexpected')?'JSON として読めませんでした。Launcher で書き出したファイルを選んでください。':e.message;}
+  updateSubmit();
+}
+function updateSubmit(){$('#psubmit').disabled=!(P.post&&$('#pname').value.trim()&&SUPA.url);}
+async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function submitPost(e){
+  e.preventDefault();if($('#psubmit').disabled)return;
+  const st=$('#pstatus'),btn=$('#psubmit');btn.disabled=true;st.className='status';st.textContent='投稿しています…';
+  try{
+    const token=[...crypto.getRandomValues(new Uint8Array(24))].map(x=>x.toString(16).padStart(2,'0')).join('');
+    const body={name:$('#pname').value.trim().slice(0,30),comment:$('#pcomment').value.trim().slice(0,200),host:P.phost,layers:P.post.layers,delete_hash:await sha256hex(token)};
+    const res=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    const row=res&&res[0];if(!row)throw new Error('投稿の結果を受け取れませんでした');
+    const my=mine();my[row.id]=token;store.set('mine',my);store.set('nick',body.name);
+    P.rows.unshift(prep(row));P.post=null;$('#pform').reset();$('#pboard').hidden=true;
+    st.className='status ok';st.textContent='投稿しました。';location.hash='km-'+row.id;
+  }catch(err){st.className='status err';st.textContent='投稿できませんでした: '+err.message;btn.disabled=false;}
+}
+function renderPost(){
+  const t=store.get('keymap',null);$('#usetyping').hidden=!(t&&String(t).trim().startsWith('{'));
+  if(!$('#pname').value)$('#pname').value=store.get('nick','');
+  document.querySelectorAll('#phost button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.h===P.phost));
+  if(!SUPA.url){$('#pstatus').className='status';$('#pstatus').textContent='データベースの準備中のため、まだ投稿できません。';}
+  updateSubmit();
+}
+
+/* ---- detail ---- */
+function renderDetail(id){
+  const r=P.rows.find(x=>x.id===id);const v=$('#v-detail');
+  if(!r){$('#dname').textContent=P.loaded?'配列が見つかりません':'読み込み中…';$('#dmeta').textContent='';$('#dcomment').textContent=P.loaded?'削除されたか、URL が違うようです。':'';$('#dboard').hidden=true;$('#dchips').innerHTML='';v.querySelector('.detail-acts').hidden=true;return;}
+  v.querySelector('.detail-acts').hidden=false;$('#dboard').hidden=false;
+  $('#dname').textContent=r.name;$('#dmeta').textContent=`${fmtDate(r.created_at)} · PC配列 ${r.host.toUpperCase()}`;$('#dcomment').textContent=r.comment||'';
+  $('#dpractice').href='./?id='+r.id;
+  $('#ddelete').hidden=!mine()[r.id];
+  $('#dsimilar').onclick=()=>{P.simRef=r;};
+  $('#dexport').onclick=()=>{try{const blob=new Blob([JSON.stringify(toLauncher(r.layers))],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Keymap-Orca_echo-${r.name.replace(/[^\w\-ぁ-んァ-ン一-龥]/g,'_')}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}catch(e){$('#dstatus').className='status err';$('#dstatus').textContent='書き出せませんでした。';}};
+  $('#ddelete').onclick=async()=>{const b=$('#ddelete');
+    if(b.dataset.confirm!=='1'){b.dataset.confirm='1';b.textContent='本当に削除する';$('#dstatus').className='status';$('#dstatus').textContent='もう一度押すと削除します。元に戻せません。';return;}
+    b.disabled=true;try{const ok=await supaFetch('rpc/delete_keymap',{method:'POST',body:JSON.stringify({p_id:r.id,p_token:mine()[r.id]})});
+      if(!ok)throw new Error('合言葉が一致しませんでした');const my=mine();delete my[r.id];store.set('mine',my);P.rows=P.rows.filter(x=>x.id!==r.id);location.hash='list';
+    }catch(e){$('#dstatus').className='status err';$('#dstatus').textContent='削除できませんでした: '+e.message;b.disabled=false;}};
+  const n=r.model.layers.length;if(P.dLayer>=n)P.dLayer=0;
+  layerChips($('#dchips'),n,P.dLayer,l=>{P.dLayer=l;renderDetail(id);});
+  drawBoard($('#dboard svg'),r.geo,recCells(r,P.dLayer));
+}
+
+/* ---- routing ---- */
+function route(){
+  const h=(location.hash||'#list').slice(1);let v=h;let id=null;
+  if(h.startsWith('km-')){v='detail';id=h.slice(3);}
+  if(!['list','trends','symbols','similar','post','detail'].includes(v))v='list';
+  document.querySelectorAll('.view[id^="v-"]').forEach(el=>{el.hidden=el.id!=='v-'+v;});
+  document.querySelectorAll('#tabs a').forEach(a=>{if(a.dataset.v===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  document.querySelectorAll('#hostsel button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.host===S.host));
+  MODLABEL.alt=S.mod==='gui'?'Opt':'Alt';MODLABEL.gui=S.mod==='gui'?'Cmd':'Win';
+  if(v==='list')renderList();else if(v==='trends')renderTrends();else if(v==='symbols')renderSymbols();
+  else if(v==='similar')renderSimilar();else if(v==='post')renderPost();else renderDetail(id);
+}
+
+/* ---- events ---- */
+window.addEventListener('hashchange',()=>{const d=$('#ddelete');d.dataset.confirm='';d.textContent='削除する';$('#dstatus').textContent='';route();window.scrollTo(0,0);});
+$('#hostsel').addEventListener('click',e=>{const b=e.target.closest('button[data-host]');if(!b)return;S.host=b.dataset.host;store.set('host',S.host);route();});
+$('#q').addEventListener('input',()=>renderList());
+$('#simsel').addEventListener('change',e=>{const v=e.target.value;if(v==='__local')return;P.simRef=P.rows.find(r=>r.id===v)||null;renderSimilar();});
+$('#simfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const rec=prep({layers:fromLauncherObj(JSON.parse(String(rd.result))),host:S.host,id:'__local',name:'読み込んだ JSON'});rec.local=true;P.simRef=rec;$('#simstatus').className='status ok';$('#simstatus').textContent='読み込んだ配列と比べています。';renderSimilar();}catch(err){$('#simstatus').className='status err';$('#simstatus').textContent=err.message;}};rd.readAsText(f);e.target.value='';});
+$('#pfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>setPost(String(rd.result),f.name+' ');rd.readAsText(f);e.target.value='';});
+const drop=$('#drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>setPost(String(rd.result),f.name+' ');rd.readAsText(f);});
+document.addEventListener('paste',e=>{if((location.hash||'')!=='#post')return;const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))return;const t=e.clipboardData&&e.clipboardData.getData('text');if(t&&t.trim().startsWith('{')){e.preventDefault();setPost(t,'貼り付けた ');}});
+$('#usetyping').addEventListener('click',()=>{const t=store.get('keymap',null);if(t)setPost(String(t),'タイピング練習の配列');});
+$('#phost').addEventListener('click',e=>{const b=e.target.closest('button[data-h]');if(!b)return;P.phost=b.dataset.h;if(P.post)P.post.host=P.phost;renderPost();});
+$('#pname').addEventListener('input',updateSubmit);
+$('#pform').addEventListener('submit',submitPost);
+
+route();loadAll();
+</script>
+</body>
+</html>
