@@ -196,7 +196,7 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
   <!-- similar -->
   <section class="view" id="v-similar" hidden>
     <div class="vhead"><h2>似ている配列</h2></div>
-    <p class="note">基準にする配列を選ぶと、英字・数字・記号がどれだけ同じ場所（同じレイヤー・同じキー）にあるかで近い順に並べます。</p>
+    <p class="note">基準にする配列を選ぶと、英字・数字・記号がどれだけ同じ場所（同じレイヤー・同じキー）にあるかで近い順に並べます。比べるときは、全員を右上で選んだ PC 配列で打ったものとして計算します。</p>
     <div class="panel picker">
       <select id="simsel" aria-label="基準にする配列"></select>
       <label class="btn">自分の JSON で比べる<input type="file" id="simfile" accept=".json" hidden></label>
@@ -755,7 +755,7 @@ function renderTrends(){
 /* ---- symbols ---- */
 const NUMS='1234567890',SYMS='!@#$%^&*()-_=+[]{};:\'",.<>/?\\|`~';
 const LCOL=['var(--l0)','var(--l1)','var(--l2)','var(--l3)','var(--lx)'];
-function placeOf(r,c){const g=findChar(r.model,r.host,r.geo,c,r.R);if(!g)return null;return {layer:g.layer,p:r.pos[g.target[0]],shift:g.mods.length>0,combo:!!g.combo};}
+function placeOf(r,c,host){const g=findChar(r.model,host||r.host,r.geo,c,r.R);if(!g)return null;return {layer:g.layer,p:r.pos[g.target[0]],shift:g.mods.length>0,combo:!!g.combo};}
 function placeKey(pl){return pl?`${pl.layer}:${pl.p}:${pl.shift?1:0}`:'none';}
 function placeText(pl){return pl?`${LNAME[pl.layer]||'L'+pl.layer}${pl.shift?'＋⇧':''} · ${posWords(pl.p)}`:'置いていない';}
 function renderSymbols(){
@@ -778,7 +778,7 @@ function renderSymbols(){
 
 /* ---- similar ---- */
 const SIMCHARS='abcdefghijklmnopqrstuvwxyz'+NUMS+SYMS;
-function vec(r){const v={};for(const c of SIMCHARS)v[c]=placeKey(placeOf(r,c));return v;}
+function vec(r){const v={};for(const c of SIMCHARS)v[c]=placeKey(placeOf(r,c,S.host));return v;}
 function simScore(a,b){let m=0,t=0;for(const c of SIMCHARS){if(a[c]==='none'&&b[c]==='none')continue;t++;if(a[c]===b[c])m++;}return t?m/t:0;}
 function renderSimilar(){
   const sel=$('#simsel');const my=mine();
