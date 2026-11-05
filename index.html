@@ -521,7 +521,7 @@ function fromLauncherObj(obj){
   if(maps.some(a=>a.some(v=>v===0x7C77||v===0x7C78)))last=Math.max(last,Math.min(3,maps.length-1));
   return maps.slice(0,last+1);
 }
-const SUPA={url:"",key:""};
+const SUPA={url:"https://igwjpvtimiyvuwptrofd.supabase.co",key:"sb_publishable_uF42zmEYVGeRP-gRSBstbA_CtEUxhjt"};
 async function supaFetch(path,opt){
   if(!SUPA.url)throw new Error('データベースが未設定です');
   const r=await fetch(SUPA.url+'/rest/v1/'+path,Object.assign({},opt,{headers:Object.assign({apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json'},(opt&&opt.headers)||{})}));
