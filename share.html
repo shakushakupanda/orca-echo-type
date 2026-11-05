@@ -120,6 +120,22 @@ td.ch{font-family:var(--f-mono);font-size:17px;font-weight:600;width:44px;text-a
 .rk .sc{font-family:var(--f-mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
 .rk .acts{display:flex;gap:6px;grid-column:2/-1}
 .rk .acts a{font-size:12px;color:var(--accent);text-decoration:none}
+.simgrid{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;align-items:start}
+.rk{cursor:pointer}
+.rk.on{border-color:var(--accent);background:var(--accent-soft)}
+.rk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cmp{display:flex;flex-direction:column;gap:12px}
+.cmpsc{font-family:var(--f-mono);font-size:22px;font-weight:600}
+.groups{display:flex;flex-wrap:wrap;gap:8px}
+.grp{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;color:var(--muted);min-width:96px}
+.grp b{display:block;font-family:var(--f-mono);font-size:17px;color:var(--ink)}
+.insights{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.insights li::marker{color:var(--accent)}
+.insights code{font-family:var(--f-mono);background:var(--surface-2);border-radius:4px;padding:0 4px}
+#insight h3{margin-bottom:6px}
+.key.same text.m{fill:var(--muted);opacity:.5}
+.key.diff text.s{fill:var(--ink);opacity:.8}
+@media (max-width:820px){.simgrid{grid-template-columns:1fr}}
 .picker{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;max-width:100%}
 /* post */
@@ -202,7 +218,20 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
       <label class="btn">自分の JSON で比べる<input type="file" id="simfile" accept=".json" hidden></label>
       <span class="status" id="simstatus"></span>
     </div>
-    <div class="rank" id="rank"></div>
+    <div class="panel" id="insight" hidden></div>
+    <div class="simgrid">
+      <div class="rank" id="rank"></div>
+      <section class="panel cmp" id="cmp" hidden>
+        <div class="vhead"><h3 id="cmph"></h3><span class="cmpsc" id="cmpsc"></span></div>
+        <div class="groups" id="cmpgroups"></div>
+        <ul class="insights" id="cmpins"></ul>
+        <div class="chips" id="cmpchips"></div>
+        <div class="board" id="cmpboard"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="配列の違い"></svg></div>
+        <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>違うキー（大きい文字＝相手、小さい文字＝基準）</span><span><i class="sw" style="background:var(--key);border:1px solid var(--key-edge)"></i>同じキー</span></div>
+        <div class="tbl-wrap"><table id="cmptable"><thead><tr><th>文字</th><th>基準</th><th>相手</th></tr></thead><tbody></tbody></table></div>
+        <div class="detail-acts"><a class="btn" id="cmpview" href="#">相手の配列を見る</a><a class="btn pri" id="cmppractice" href="#">相手の配列で練習</a></div>
+      </section>
+    </div>
   </section>
 
   <!-- post -->
@@ -615,7 +644,7 @@ const DEFAULT_KM="{\"id\":875824269,\"keymap\":[[{\"col\":0,\"row\":0,\"val\":41
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem('oet:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('oet:'+k,JSON.stringify(v));}catch(e){}}};
 const S={host:store.get('host','jis'),mod:store.get('mod','gui'),model:null};
-const P={rows:[],loaded:false,error:null,tLayer:0,tSel:null,dLayer:0,simRef:null,post:null,phost:store.get('host','jis')};
+const P={rows:[],loaded:false,error:null,tLayer:0,tSel:null,dLayer:0,simRef:null,cmp:null,cmpLayer:0,post:null,phost:store.get('host','jis')};
 /* labels */
 function tapLabel(t){
   let base;
@@ -780,19 +809,81 @@ function renderSymbols(){
 const SIMCHARS='abcdefghijklmnopqrstuvwxyz'+NUMS+SYMS;
 function vec(r){const v={};for(const c of SIMCHARS)v[c]=placeKey(placeOf(r,c,S.host));return v;}
 function simScore(a,b){let m=0,t=0;for(const c of SIMCHARS){if(a[c]==='none'&&b[c]==='none')continue;t++;if(a[c]===b[c])m++;}return t?m/t:0;}
+function rawAt(r,L,p){const i=r.pos.indexOf(p);if(i<0)return '&none';const lay=r.model.layers[L];if(!lay)return L>0?'&trans':'&none';const k=lay.keys[i];if(!k)return '&none';return (k.trans&&L>0)?'&trans':k.raw;}
+function labAt(r,L,p){const i=r.pos.indexOf(p);if(i<0)return '';const lay=r.model.layers[L];if(!lay)return '▽';const k=lay.keys[i];if(!k)return '';if(k.trans&&L>0)return '▽';S.model=r.model;return labelOf(k).m||'·';}
+const GROUPS=[['英字','abcdefghijklmnopqrstuvwxyz'],['数字',NUMS],['記号',SYMS]];
+function groupScore(a,b,chars){let m=0,t=0;for(const c of chars){if(a[c]==='none'&&b[c]==='none')continue;t++;if(a[c]===b[c])m++;}return t?m/t:1;}
+function modeLayer(r,chars,host){const lc={};for(const c of chars){const pl=placeOf(r,c,host);if(pl)lc[pl.layer]=(lc[pl.layer]||0)+1;}const e=Object.entries(lc).sort((x,y)=>y[1]-x[1])[0];return e?+e[0]:null;}
+function layerKeyPos(r){const out=[];const lay=r.model.layers[0];lay.keys.forEach((k,i)=>{if(k.holdLayer!=null)out.push({L:k.holdLayer,p:r.pos[i]});});return out;}
+const lnm=L=>L==null?'なし':(LNAME[L]||'L'+L);
+const placeTextKey=k=>{if(k==='none')return '打てない';const [L,p,sh]=k.split(':').map(Number);return `${lnm(L)}${sh?'＋⇧':''} · ${posWords(p)}`;};
+function compareInsights(ref,oth,va,vb){
+  const out=[];const h=S.host;
+  const gs=GROUPS.map(([n,ch])=>[n,groupScore(va,vb,ch)]);
+  const hi=gs.filter(g=>g[1]>=.9).map(g=>g[0]),lo=gs.filter(g=>g[1]<.7);
+  if(hi.length)out.push(`${hi.join('・')}の配置はほぼ同じです。`);
+  for(const [n,sc] of lo)out.push(`${n}の置き方が大きく違います（一致 ${Math.round(sc*100)}%）。`);
+  for(const [n,ch] of [['数字',NUMS],['記号',SYMS]]){const a=modeLayer(ref,ch,h),b=modeLayer(oth,ch,h);if(a!==b)out.push(`${n}は、基準が <b>${lnm(a)}</b>、相手が <b>${lnm(b)}</b> を中心に置いています。`);}
+  const onlyA=[],onlyB=[];for(const c of SIMCHARS){if(va[c]!=='none'&&vb[c]==='none')onlyA.push(c);if(va[c]==='none'&&vb[c]!=='none')onlyB.push(c);}
+  if(onlyB.length)out.push(`相手の配列でだけ打てる文字: ${onlyB.slice(0,10).map(c=>`<code>${esc(c)}</code>`).join(' ')}${onlyB.length>10?' ほか':''}`);
+  if(onlyA.length)out.push(`基準の配列でだけ打てる文字: ${onlyA.slice(0,10).map(c=>`<code>${esc(c)}</code>`).join(' ')}${onlyA.length>10?' ほか':''}`);
+  const la=layerKeyPos(ref).map(x=>x.L+'@'+x.p).sort().join(),lb=layerKeyPos(oth).map(x=>x.L+'@'+x.p).sort().join();
+  if(la!==lb){const d=layerKeyPos(oth).map(x=>`${lnm(x.L)}: ${posWords(x.p)}`).join('、');out.push(`レイヤーキーの位置が違います。相手は ${esc(d||'ベースにレイヤーキーなし')}。`);}
+  let baseDiff=0;for(const p of CANON.pos)if(rawAt(ref,0,p)!==rawAt(oth,0,p))baseDiff++;
+  out.push(baseDiff?`ベースレイヤーで違うキーは ${baseDiff} か所です。`:'ベースレイヤーは完全に同じです。');
+  return {gs,out};
+}
+function communityInsight(ref){
+  const n=P.rows.length;if(n<2)return '';
+  const h=S.host,rv=vec(ref);const lines=[];
+  const others=P.rows.filter(r=>r.id!==ref.id);
+  const scores=others.map(r=>simScore(rv,vec(r)));const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
+  lines.push(`みんなとの平均一致度は <b>${Math.round(avg*100)}%</b> です。`);
+  for(const [nm,ch] of [['数字',NUMS],['記号',SYMS]]){
+    const cnt={};for(const r of P.rows){const m=modeLayer(r,ch,h);cnt[m]=(cnt[m]||0)+1;}
+    const mine=modeLayer(ref,ch,h);const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];const share=Math.round((cnt[mine]||0)/n*100);
+    lines.push(String(mine)===top[0]?`${nm}を <b>${lnm(mine)}</b> に置くのは多数派です（${share}%）。`:`${nm}を <b>${lnm(mine)}</b> に置くのは少数派です（${share}%）。多いのは ${lnm(top[0]==='null'?null:+top[0])}（${Math.round(top[1]/n*100)}%）です。`);
+  }
+  let common=0,tot=0;const td=trendData(0);
+  for(const p of CANON.pos){const d=td[p];if(!d||!d.list.length)continue;tot++;if(d.list[0].raw===rawAt(ref,0,p))common++;}
+  if(tot)lines.push(`ベースレイヤーの ${tot} キーのうち、${common} キーがいちばん人気の割り当てと同じです。`);
+  return `<h3>${esc(ref.name)} の配列の分析</h3><ul class="insights">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>`;
+}
+function renderCompare(ref,oth){
+  const box=$('#cmp');if(!oth){box.hidden=true;return;}box.hidden=false;
+  const va=vec(ref),vb=vec(oth);const sc=simScore(va,vb);
+  $('#cmph').textContent=`${ref.name} と ${oth.name}`;$('#cmpsc').innerHTML=`${Math.round(sc*100)}<span class="muted small">%</span>`;
+  const {gs,out}=compareInsights(ref,oth,va,vb);
+  $('#cmpgroups').innerHTML=gs.map(([n,v])=>`<div class="grp">${n}<b>${Math.round(v*100)}%</b></div>`).join('');
+  $('#cmpins').innerHTML=out.map(l=>`<li>${l}</li>`).join('');
+  const maxL=Math.min(4,Math.max(ref.model.layers.length,oth.model.layers.length));if(P.cmpLayer>=maxL)P.cmpLayer=0;
+  layerChips($('#cmpchips'),maxL,P.cmpLayer,l=>{P.cmpLayer=l;renderCompare(ref,oth);});
+  const L=P.cmpLayer;
+  drawBoard($('#cmpboard svg'),CANON.geo,i=>{const p=CANON.pos[i];const same=rawAt(ref,L,p)===rawAt(oth,L,p);const lb=labAt(oth,L,p),la=labAt(ref,L,p);
+    return same?{m:lb,cls:'same'}:{m:lb,s:la,heat:.55,cls:'diff'};});
+  const diffs=[...SIMCHARS].filter(c=>va[c]!==vb[c]);
+  $('#cmptable tbody').innerHTML=diffs.length?diffs.map(c=>`<tr><td class="ch">${esc(c)}</td><td>${esc(placeTextKey(va[c]))}</td><td>${esc(placeTextKey(vb[c]))}</td></tr>`).join(''):'<tr><td colspan="3" class="muted">英字・数字・記号はすべて同じ場所にあります。</td></tr>';
+  $('#cmpview').href='#km-'+oth.id;$('#cmppractice').href='./?id='+oth.id;
+}
 function renderSimilar(){
   const sel=$('#simsel');const my=mine();
+  if(!P.simRef){const firstMine=P.rows.find(r=>my[r.id]);P.simRef=firstMine||P.rows[0]||null;}
   const opts=P.rows.map(r=>`<option value="${r.id}">${my[r.id]?'（自分）':''}${esc(r.name)}</option>`).join('');
   sel.innerHTML=(P.simRef&&P.simRef.local?'<option value="__local">読み込んだ JSON</option>':'')+(opts||'<option value="">投稿がまだありません</option>');
   if(P.simRef)sel.value=P.simRef.local?'__local':P.simRef.id;
-  const rank=$('#rank');
-  if(!P.simRef){const firstMine=P.rows.find(r=>my[r.id]);if(firstMine){P.simRef=firstMine;sel.value=firstMine.id;}else if(P.rows[0]){P.simRef=P.rows[0];sel.value=P.rows[0].id;}}
-  if(!P.simRef||!P.rows.length){rank.innerHTML=`<div class="empty panel"><b>${P.error?esc(P.error):'比べる配列がまだありません'}</b></div>`;return;}
+  const rank=$('#rank'),ins=$('#insight');
+  if(!P.simRef||!P.rows.length){rank.innerHTML=`<div class="empty panel"><b>${P.error?esc(P.error):'比べる配列がまだありません'}</b></div>`;ins.hidden=true;$('#cmp').hidden=true;return;}
+  const ci=communityInsight(P.simRef);ins.hidden=!ci;ins.innerHTML=ci;
   const rv=vec(P.simRef);
   const list=P.rows.filter(r=>r.id!==P.simRef.id).map(r=>({r,sc:simScore(rv,vec(r))})).sort((a,b)=>b.sc-a.sc).slice(0,20);
-  rank.innerHTML=list.length?list.map((x,i)=>`<div class="rk"><span class="no">${i+1}</span><span class="nm"></span><span class="sc">${Math.round(x.sc*100)}<span class="muted small">%</span></span><span class="acts"><a href="#km-${x.r.id}">配列を見る</a><a href="./?id=${x.r.id}">この配列で練習</a></span></div>`).join(''):'<p class="note">ほかの投稿がまだありません。</p>';
+  if(!list.length){rank.innerHTML='<p class="note">ほかの投稿がまだありません。</p>';$('#cmp').hidden=true;return;}
+  if(!P.cmp||!list.some(x=>x.r.id===P.cmp.id))P.cmp=list[0].r;
+  rank.innerHTML=list.map((x,i)=>`<div class="rk${x.r.id===P.cmp.id?' on':''}" tabindex="0" role="button" data-id="${x.r.id}"><span class="no">${i+1}</span><span class="nm"></span><span class="sc">${Math.round(x.sc*100)}<span class="muted small">%</span></span></div>`).join('');
   [...rank.querySelectorAll('.rk .nm')].forEach((el,i)=>{el.textContent=list[i].r.name;});
+  renderCompare(P.simRef,P.cmp);
 }
+$('#rank').addEventListener('click',e=>{const el=e.target.closest('.rk');if(!el)return;P.cmp=P.rows.find(r=>r.id===el.dataset.id)||null;renderSimilar();if(window.innerWidth<820)$('#cmp').scrollIntoView({behavior:'smooth',block:'start'});});
+$('#rank').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const el=e.target.closest('.rk');if(!el)return;e.preventDefault();el.click();});
 
 /* ---- post ---- */
 function setPost(text,from){
