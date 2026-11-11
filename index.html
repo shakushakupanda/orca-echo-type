@@ -1707,6 +1707,20 @@ $('#ev-list').addEventListener('click',e=>{const b=e.target.closest('[data-undo]
 $('#ev-write').addEventListener('click',evWrite);
 $('#ev-json').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{evApplyJson(JSON.parse(String(r.result)));$('#ev-status').className='status ok';$('#ev-status').textContent=`${f.name} を当てはめました。変更点を確かめてから書き込んでください。`;}catch(err){$('#ev-status').className='status err';$('#ev-status').textContent=err.message;}evRender();};r.readAsText(f);e.target.value='';});
 
+/* USB only works on the real site; elsewhere (e.g. inside claude.ai) send people there */
+const SITE_URL='https://shakushakupanda.github.io/orca-echo-type/';
+(function(){
+  const h=location.hostname;const ok=/github\.io$/.test(h)||h==='localhost'||h==='127.0.0.1'||location.protocol==='file:';
+  if(ok)return;
+  const go=e=>{e.preventDefault();e.stopImmediatePropagation();};
+  for(const id of ['ob-kb','km-kb','ev-read']){
+    const b=document.getElementById(id);if(!b)continue;
+    const a=document.createElement('a');a.href=SITE_URL;a.target='_blank';a.rel='noopener';a.className=b.className;a.id=b.id;
+    a.innerHTML=b.innerHTML;b.replaceWith(a);
+  }
+  const t=document.querySelector('#ob-kb .kbbig-t span');if(t)t.textContent='USB で読み込むには、GitHub Pages 版を開いてください（新しいタブで開きます）';
+  const n=document.querySelector('.ob-hero .ob-note');if(n)n.textContent='このページは claude.ai の中で動いているため、USB 接続が使えません。GitHub Pages 版なら Chrome / Edge で読み込めます。';
+})();
 $('#sharelink').href=SHARE_URL;
 (async function boot(){
   let qid=null;try{qid=new URLSearchParams(location.search).get('id');}catch(e){}
