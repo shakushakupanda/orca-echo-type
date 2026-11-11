@@ -528,7 +528,7 @@ function buildModel(km){
   const ids=km.layers.map(l=>l.id.toLowerCase());
   const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
   const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
-  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,hold:c.holdRaw?parseBinding(c.holdRaw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
   const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
   return {layers,combos,cond};
 }
@@ -659,7 +659,7 @@ function importLauncher(obj){
   const combos=[];
   if(Array.isArray(obj.combos))for(const c of obj.combos){
     const pos=(c.keys||[]).map(p=>matrix.findIndex(m=>m.row===Math.floor(p/14)&&m.col===p%14)).filter(i=>i>=0);
-    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),mask:c.layers==null?null:c.layers,term:c.term});
+    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),holdRaw:c.hold?qmkToZmk(c.hold|0):null,mask:c.layers==null?null:c.layers,term:c.term});
   }
   return {defines:{},layers,combos,cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
 }
@@ -967,6 +967,13 @@ function labelOf(k){
   }
 }
 
+/* combo output text: tap, or hold when tap is empty, or "tap / hold" */
+function cbLabel(cb,long){
+  const t=cb.key&&!cb.key.none?labelOf(cb.key).m:'';const h=cb.hold&&!cb.hold.none?labelOf(cb.hold).m:'';
+  if(t&&h)return long?`${t}（長押し ${h}）`:`${t}/${h}`;
+  if(h)return long?`長押し ${h}`:h;
+  return t||'?';
+}
 /* keyboard svg */
 const U=58,KW=52,NS='http://www.w3.org/2000/svg';
 function buildKeyboard(){
@@ -1307,15 +1314,15 @@ function drawComboOverlay(svg,items){
 function renderCombos(viewL){
   const box=$('#combos');if(!box)return;const m=S.model;
   const list=m&&m.combos&&S.km&&S.km.src==='launcher'?m.combos:[];
-  drawComboOverlay($('#kb'),list.map((cb,ci)=>{const on=cb.mask==null?viewL===0:!!(cb.mask&(1<<viewL));if(!on||!cb.key)return null;
-    return {pts:cb.pos.map(i=>S.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:labelOf(cb.key).m||'?',ci,title:'コンボ: '+(labelOf(cb.key).m||'?')};}).filter(Boolean));
+  drawComboOverlay($('#kb'),list.map((cb,ci)=>{const on=cb.mask==null?viewL===0:!!(cb.mask&(1<<viewL));if(!on||(!cb.key&&!cb.hold))return null;
+    return {pts:cb.pos.map(i=>S.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:cbLabel(cb),ci,title:'コンボ: '+cbLabel(cb,true)};}).filter(Boolean));
   if(!list.length){box.hidden=true;box.innerHTML='';return;}
   box.hidden=false;
   const keyName=i=>{const k=effKey(m,viewL,i)||effKey(m,0,i);return k?labelOf(k).m||'?':'?';};
   box.innerHTML='<span class="muted small" style="align-self:center">コンボ</span>'+list.map((cb,ci)=>{
     const on=cb.mask==null?viewL===0:!!(cb.mask&(1<<viewL));
     const ls=cb.mask==null?'':[...Array(8).keys()].filter(L=>cb.mask&(1<<L)).map(lname).join('・');
-    const out=cb.key?labelOf(cb.key).m:'?';
+    const out=cbLabel(cb,true);
     return `<span class="mc cb${on?'':' off'}" data-ci="${ci}" title="${esc((ls?ls+' で有効':'')+(cb.term?` · 判定 ${cb.term}ms`:''))}"><b>${esc(cb.pos.map(keyName).join(' + '))}</b><span>→ ${esc(out)}${on?'':'（'+esc(ls)+'）'}</span></span>`;}).join('');
 }
 function hlCombo(ci){S.keyEls.forEach(el=>el.g.classList.remove('combo-hl'));if(ci==null)return;const cb=S.model.combos[ci];if(!cb)return;for(const i of cb.pos){const el=S.keyEls[i];if(el)el.g.classList.add('combo-hl');}}
@@ -1499,7 +1506,7 @@ function evDiffs(){
 }
 function evKeyText(v,h){return v===HT_MARK&&h?`${vLabel(h.tap)} ／ 長押し ${vLabel(h.hold)}`:vLabel(v);}
 function evBaseName(p){const v=EV.cur.keys[0][p];if(v===HT_MARK){const h=EV.cur.ht.get(evKey(0,p));return h?vShort(h.tap):'H/T';}return vShort(v)||evPosName(p);}
-function evCbText(cb){if(!cb)return 'なし';const ks=cb.keys.map(evBaseName).join(' + ');return `${ks} → ${vLabel(cb.tap)}${cb.hold?' ／ 長押し '+vLabel(cb.hold):''}`;}
+function evCbText(cb){if(!cb)return 'なし';const ks=cb.keys.map(evBaseName).join(' + ');return cb.tap?`${ks} → ${vLabel(cb.tap)}${cb.hold?' ／ 長押し '+vLabel(cb.hold):''}`:`${ks} → 長押し ${vLabel(cb.hold)}`;}
 function evPosName(p){const g=EV.geo&&EV.geo[EV.matrix.findIndex(m=>m.row*14+m.col===p)];return (g?(g.side==='L'?'左':'右')+g.finger:'')+` (${Math.floor(p/14)},${p%14})`;}
 /* ---------- render ---------- */
 function evRender(){
@@ -1543,7 +1550,7 @@ function evComboOverlay(){
   const L=EV.layer,items=[];
   EV.cur.combos.forEach((c,i)=>{if(!c||!(c.layers&(1<<L))||c.keys.length<2)return;
     const pts=c.keys.map(p=>{const j=EV.matrix.findIndex(m=>m.row*14+m.col===p);const g=EV.geo[j];return g?[g.x*U,g.y*U]:null;}).filter(Boolean);
-    items.push({pts,label:vShort(c.tap)||'?',ci:i,cls:EV.cb===i?'on':'',title:`コンボ #${i+1}: ${evCbText(c)}`});});
+    items.push({pts,label:(c.tap&&c.hold?vShort(c.tap)+'/'+vShort(c.hold):(vShort(c.tap)||vShort(c.hold)))||'?',ci:i,cls:EV.cb===i?'on':'',title:`コンボ #${i+1}: ${evCbText(c)}`});});
   drawComboOverlay($('#ev-kb'),items);
 }
 function evSlotBtn(id,label,v,on){return `<button class="ev-slot${on?' on':''}" data-slot="${id}"><small>${label}</small><b>${esc(vLabel(v))}</b><code>${hx4(v)}</code></button>`;}

@@ -381,7 +381,7 @@ function buildModel(km){
   const ids=km.layers.map(l=>l.id.toLowerCase());
   const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
   const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
-  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,hold:c.holdRaw?parseBinding(c.holdRaw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
   const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
   return {layers,combos,cond};
 }
@@ -512,7 +512,7 @@ function importLauncher(obj){
   const combos=[];
   if(Array.isArray(obj.combos))for(const c of obj.combos){
     const pos=(c.keys||[]).map(p=>matrix.findIndex(m=>m.row===Math.floor(p/14)&&m.col===p%14)).filter(i=>i>=0);
-    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),mask:c.layers==null?null:c.layers,term:c.term});
+    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),holdRaw:c.hold?qmkToZmk(c.hold|0):null,mask:c.layers==null?null:c.layers,term:c.term});
   }
   return {defines:{},layers,combos,cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
 }
@@ -714,6 +714,13 @@ function labelOf(k){
   }
 }
 
+/* combo output text: tap, or hold when tap is empty, or "tap / hold" */
+function cbLabel(cb,long){
+  const t=cb.key&&!cb.key.none?labelOf(cb.key).m:'';const h=cb.hold&&!cb.hold.none?labelOf(cb.hold).m:'';
+  if(t&&h)return long?`${t}（長押し ${h}）`:`${t}/${h}`;
+  if(h)return long?`長押し ${h}`:h;
+  return t||'?';
+}
 
 const OE_ROWS=4,OE_COLS=14;
 function hidCmd(d,bytes,match,timeout){
@@ -888,13 +895,13 @@ function useRec(rec){S.model=rec.model;S.macros=(rec.extra&&Array.isArray(rec.ex
 }
 function recOverlay(svg,rec,L){
   useRec(rec);
-  drawComboOverlay(svg,rec.model.combos.map((cb,ci)=>{const on=cb.mask==null?L===0:!!(cb.mask&(1<<L));if(!on||!cb.key)return null;
-    const lab=labelOf(cb.key).m||'?';return {pts:cb.pos.map(i=>rec.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:lab,title:'コンボ: '+lab};}).filter(Boolean));
+  drawComboOverlay(svg,rec.model.combos.map((cb,ci)=>{const on=cb.mask==null?L===0:!!(cb.mask&(1<<L));if(!on||(!cb.key&&!cb.hold))return null;
+    return {pts:cb.pos.map(i=>rec.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:cbLabel(cb),title:'コンボ: '+cbLabel(cb,true)};}).filter(Boolean));
 }
 function recExtras(rec,L){
   useRec(rec);const m=rec.model;const keyName=i=>{const k=m.layers[L]&&m.layers[L].keys[i];const kk=k&&k.trans&&L>0?m.layers[0].keys[i]:k;return kk?labelOf(kk).m||'?':'?';};
   const cbs=m.combos.map(cb=>{const on=cb.mask==null?L===0:!!(cb.mask&(1<<L));const ls=cb.mask==null?'':[...Array(8).keys()].filter(x=>cb.mask&(1<<x)).map(x=>LNAME[x]||'L'+x).join('・');
-    return `<span class="mc cb${on?'':' off'}"><b>${esc(cb.pos.map(keyName).join(' + '))}</b><span>→ ${esc(cb.key?labelOf(cb.key).m:'?')}${on?'':'（'+esc(ls)+'）'}</span></span>`;}).join('');
+    return `<span class="mc cb${on?'':' off'}"><b>${esc(cb.pos.map(keyName).join(' + '))}</b><span>→ ${esc(cbLabel(cb,true))}${on?'':'（'+esc(ls)+'）'}</span></span>`;}).join('');
   const ms=(S.macros||[]).map(mc=>`<span class="mc"><b>M${mc.index}</b><span>${esc(macroText(mc))}</span></span>`).join('');
   return (cbs?`<div class="macros"><span class="muted small">コンボ</span>${cbs}</div>`:'')+(ms?`<div class="macros"><span class="muted small">マクロ</span>${ms}</div>`:'');
 }
