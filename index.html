@@ -1072,7 +1072,7 @@ async function kbImport(statusEl,after){
     say('一覧から Orca echo を選んでください…');
     const obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`));
     const text=JSON.stringify(obj);S.lastRead=obj;
-    if(loadKeymap(text,`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個）`,true)){store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個）`,'ok');if(after)after();}
+    if(loadKeymap(text,null,true)){$('#km-status').className='status ok';$('#km-status').textContent=`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個）`;store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個）`,'ok');if(after)after();}
   }catch(e){
     if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');
     else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。https://shakushakupanda.github.io/orca-echo-type/ を Chrome / Edge で開いてください。','err');
