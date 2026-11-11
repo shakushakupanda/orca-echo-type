@@ -250,6 +250,12 @@ body.ev-wide .wrap{max-width:1360px}
 .ev-search #ev-q{width:min(260px,100%)}
 .ev-search #ev-hex{width:90px;font-family:var(--f-mono)}
 .ev-keys{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto;padding:2px}
+.ev-mods{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ev-mod{font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid var(--key-edge);background:var(--bg);color:var(--muted);cursor:pointer}
+.ev-mod[aria-pressed="true"]{background:var(--mod-soft);border-color:var(--mod);color:var(--mod)}
+.ev-right{display:inline-flex;gap:4px;align-items:center;font-size:12px;color:var(--muted)}
+.ev-modnow{font-size:12px;color:var(--ink);margin-left:auto}
+.ev-modnow b{color:var(--mod)}
 .ev-k{font:inherit;font-size:12px;min-width:52px;padding:7px 9px;border-radius:8px;border:1px solid var(--key-edge);background:var(--key);color:var(--ink);cursor:pointer;line-height:1.2}
 .ev-k:hover{border-color:var(--muted)}
 .ev-k.cur{border-color:var(--accent);background:var(--accent-soft)}
@@ -408,6 +414,12 @@ body.ev-wide .wrap{max-width:1360px}
       </div>
       <section class="panel ev-picker" id="ev-picker" hidden>
         <div class="vhead"><h3 id="ev-pick-h">割り当てるキー</h3><div class="ev-search"><input id="ev-q" type="search" placeholder="検索（例: enter, mo, スクロール）" aria-label="キーを検索"><input id="ev-hex" placeholder="0x0000" aria-label="キーコードを直接入力" spellcheck="false"><button class="btn" id="ev-hex-go">直接入力</button></div></div>
+        <div class="ev-mods" id="ev-mods" role="group" aria-label="修飾キーを組み合わせる">
+          <span class="muted small">修飾キーを付ける</span>
+          <button class="ev-mod" data-m="1">Ctrl</button><button class="ev-mod" data-m="2">Shift</button><button class="ev-mod" data-m="4" id="ev-mod-alt">Alt</button><button class="ev-mod" data-m="8" id="ev-mod-gui">Cmd</button>
+          <label class="ev-right"><input type="checkbox" id="ev-mod-r">右側の修飾キー</label>
+          <span class="ev-modnow" id="ev-modnow"></span>
+        </div>
         <div class="chips" id="ev-cats"></div>
         <div class="ev-keys" id="ev-keys"></div>
       </section>
@@ -1444,7 +1456,7 @@ setInterval(renderStats,1000);
    key:       05 <L> <r> <c> <kc hi> <kc lo>                          (VIA set keycode)
    hold-tap:  key = 0x7E1A, then a7 20 07 <L> <r> <c> tap(LE16) hold(LE16) term(LE16); delete a7 20 0f <L> <r> <c>
    combo:     a7 20 09 <slot> term(LE16) <layer bits> k1 k2 k3 k4 (0xff = none) tap(LE16) hold(LE16); delete a7 20 0e <slot> */
-const EV={orig:null,cur:null,matrix:null,geo:null,layer:0,sel:null,cb:null,pickT:null,pickCombo:false,cat:'文字',q:'',els:[],nLayers:8,busy:false};
+const EV={mods:0,modFor:'',orig:null,cur:null,matrix:null,geo:null,layer:0,sel:null,cb:null,pickT:null,pickCombo:false,cat:'文字',q:'',els:[],nLayers:8,busy:false};
 const evKey=(L,p)=>L+':'+p;
 function evClone(st){return {keys:st.keys.map(a=>a.slice()),ht:new Map([...st.ht].map(([k,v])=>[k,Object.assign({},v)])),combos:st.combos.map(c=>c?Object.assign({},c,{keys:c.keys.slice()}):null)};}
 function evFromRead(obj){
@@ -1465,14 +1477,18 @@ function vLabel(v){
   if(v===0x7E1D)return 'ボールスクロール';
   if(v===HT_MARK)return '長押しキー';
   if(v>=0x5220&&v<=0x523F)return 'MO('+(v&0x1F)+')';if(v>=0x5260&&v<=0x527F)return 'TG('+(v&0x1F)+')';if(v>=0x5200&&v<=0x521F)return 'TO('+(v&0x1F)+')';
+  if(v>=0x0100&&v<=0x1FFF&&(v&0xFF)){const m=(v>>8)&0x1F,b=v&0xFF;const names=modNames(m);
+    if(m===2||m===0x12){const z=qmkToZmk(v);try{const k=parseBinding(z,x=>null);const l=labelOf(k);if(l.m&&l.m.length===1)return l.m;}catch(e){}}
+    return names.join('+')+'+'+vLabel(b);}
   const z=qmkToZmk(v);
   try{const k=parseBinding(z,x=>/^\d+$/.test(x)?+x:null);const l=labelOf(k);return (l.m||'?')+(l.s&&k.beh!=='kp'?' '+l.s:'');}catch(e){return z;}
 }
+function modNames(m){const mac=S.mod==='gui',r=(m&0x10)?'右':'';const out=[];if(m&8)out.push(r+(mac?'Cmd':'Win'));if(m&1)out.push(r+'Ctrl');if(m&4)out.push(r+(mac?'Opt':'Alt'));if(m&2)out.push(r+'Shift');return out;}
 function vShort(v){if(v===0)return '';if(v===1)return '▽';if(v===0x7E1D)return 'Scroll';const t=vLabel(v);return t;}
 const hx4=v=>'0x'+(v>>>0).toString(16).toUpperCase().padStart(4,'0');
 /* keycode catalogue for the picker */
 const EV_CATS=(()=>{
-  const C=[],add=(cat,v,name,kw)=>C.push({cat,v,name:name||null,kw:(kw||'').toLowerCase()});
+  const C=[],add=(cat,v,name,kw,sc)=>C.push({cat,v,name:name||null,kw:(kw||'').toLowerCase(),sc:sc||null});
   for(let i=0;i<26;i++)add('文字',0x04+i);
   for(let i=0;i<10;i++)add('数字・記号',0x1E+i);
   for(const v of [0x2D,0x2E,0x2F,0x30,0x31,0x33,0x34,0x35,0x36,0x37,0x38])add('数字・記号',v);
@@ -1487,6 +1503,7 @@ const EV_CATS=(()=>{
   for(let n=0;n<8;n++)add('レイヤー',0x5260+n,'TG('+n+')','tg toggle 切替 layer');
   for(let n=0;n<8;n++)add('レイヤー',0x5200+n,'TO('+n+')','to layer');
   add('レイヤー',0x7C77,'Fn1（tri-layer）','tri lower');add('レイヤー',0x7C78,'Fn2（tri-layer）','tri upper');
+  for(const [k,n,sh,ctrl] of [[0x06,'コピー'],[0x19,'貼り付け'],[0x1B,'切り取り'],[0x1D,'元に戻す'],[0x1D,'やり直し',1],[0x04,'すべて選択'],[0x16,'保存'],[0x09,'検索'],[0x17,'新しいタブ'],[0x1A,'タブを閉じる'],[0x17,'閉じたタブを開く',1],[0x2B,'次のタブ',0,1],[0x2B,'前のタブ',1,1],[0x2C,'入力切替(Ctrl+Space)',0,1]])add('ショートカット',0,n,'shortcut '+n,{k,sh,ctrl});
   add('その他',0x0001,'透過','trans transparent');add('その他',0x0000,'割り当てなし','none no');
   for(let n=0;n<16;n++)add('その他',0x7700+n,'マクロ M'+n,'macro');
   return C;
@@ -1596,8 +1613,16 @@ function evRenderPicker(){
   $('#ev-pick-h').textContent={key:'割り当てるキー',tap:'短押しのキー',hold:'長押しのキー',ctap:'コンボで出すキー',chold:'コンボの長押しキー'}[EV.pickT];
   $('#ev-cats').innerHTML=EV_CAT_NAMES.map(c=>`<button class="chip${c===EV.cat&&!EV.q?' on':''}" data-cat="${c}">${c}</button>`).join('');
   const q=EV.q.trim().toLowerCase(),cur=evPickTarget();
-  const items=EV_CATS.filter(c=>q?((c.name||vLabel(c.v)).toLowerCase().includes(q)||c.kw.includes(q)||hx4(c.v).toLowerCase().includes(q)):c.cat===EV.cat);
-  $('#ev-keys').innerHTML=items.map(c=>`<button class="ev-k${c.v===cur?' cur':''}" data-v="${c.v}" title="${hx4(c.v)}">${esc(c.name||vLabel(c.v))}${c.kw==='shift'?'<small>Shift+</small>':''}</button>`).join('')||'<p class="note small">見つかりません。キーコードを直接入力することもできます。</p>';
+  const scV=c=>{if(!c.sc)return c.v;const pm=c.sc.ctrl?1:(S.mod==='gui'?8:1);return (((pm|(c.sc.sh?2:0))<<8)|c.sc.k);};
+  const items=EV_CATS.map(c=>c.sc?Object.assign({},c,{v:scV(c)}):c).filter(c=>q?((c.name||vLabel(c.v)).toLowerCase().includes(q)||c.kw.includes(q)||hx4(c.v).toLowerCase().includes(q)):c.cat===EV.cat);
+  $('#ev-keys').innerHTML=items.map(c=>`<button class="ev-k${c.v===cur?' cur':''}" data-v="${c.v}" data-raw="${c.sc?1:0}" title="${hx4(c.v)}">${esc(c.name||vLabel(c.v))}${c.sc?`<small>${esc(vLabel(c.v))}</small>`:c.kw==='shift'?'<small>Shift+</small>':''}</button>`).join('')||'<p class="note small">見つかりません。キーコードを直接入力することもできます。</p>';
+  /* modifier toggles follow the value being edited */
+  const tid=EV.pickT+':'+EV.layer+':'+EV.sel+':'+EV.cb;
+  if(EV.modFor!==tid){EV.modFor=tid;EV.mods=(cur>=0x100&&cur<=0x1FFF&&(cur&0xFF))?(cur>>8)&0x1F:0;}
+  const mac=S.mod==='gui';$('#ev-mod-alt').textContent=mac?'Opt':'Alt';$('#ev-mod-gui').textContent=mac?'Cmd':'Win';
+  document.querySelectorAll('#ev-mods .ev-mod').forEach(b=>b.setAttribute('aria-pressed',!!(EV.mods&+b.dataset.m)));
+  $('#ev-mod-r').checked=!!(EV.mods&0x10);
+  $('#ev-modnow').innerHTML=(EV.mods&0xF)?`いまの割り当て: <b>${esc(vLabel(cur))}</b>`:'';
 }
 function evRenderChanges(){
   const ds=evDiffs();$('#ev-count').textContent=ds.length?`${ds.length} 件`:'';
@@ -1611,8 +1636,9 @@ function evClickKey(p){
   if(EV.pickCombo&&EV.cb!=null){const c=EV.cur.combos[EV.cb];const i=c.keys.indexOf(p);if(i>=0)c.keys.splice(i,1);else if(c.keys.length<4)c.keys.push(p);evRender();return;}
   EV.sel=p;EV.pickT=EV.cur.keys[EV.layer][p]===HT_MARK?'tap':'key';evRender();
 }
-function evSetVal(v){
+function evSetVal(v,raw){
   v=v&0xFFFF;
+  if(!raw&&(EV.mods&0xF)&&v>0x01&&v<=0x1FFF&&(v&0xFF)>=0x04&&(v&0xFF)<=0xE7)v=(v&0xFF)|(((v>>8)|EV.mods)&0x1F)<<8;
   if(EV.pickT==='key'){if(v===HT_MARK){evSetKind('ht');return;}EV.cur.keys[EV.layer][EV.sel]=v;}
   else if(EV.pickT==='tap'||EV.pickT==='hold'){const k=evKey(EV.layer,EV.sel);const h=EV.cur.ht.get(k)||{tap:0,hold:0,term:200};h[EV.pickT]=v;EV.cur.ht.set(k,h);if(EV.pickT==='tap')EV.pickT='hold';}
   else if(EV.cb!=null){const c=EV.cur.combos[EV.cb];if(EV.pickT==='ctap')c.tap=v;else c.hold=v;}
@@ -1721,7 +1747,13 @@ document.addEventListener('click',e=>{const b=e.target.closest('.ev-slot');if(!b
 $('#ev-term').addEventListener('change',e=>{const h=EV.cur.ht.get(evKey(EV.layer,EV.sel));if(h){h.term=Math.max(50,Math.min(1000,+e.target.value||200));evRender();}});
 $('#ev-cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;EV.cat=b.dataset.cat;EV.q='';$('#ev-q').value='';evRenderPicker();});
 $('#ev-q').addEventListener('input',e=>{EV.q=e.target.value;evRenderPicker();});
-$('#ev-keys').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(b)evSetVal(+b.dataset.v);});
+$('#ev-keys').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(b)evSetVal(+b.dataset.v,b.dataset.raw==='1');});
+function evApplyMods(){
+  const cur=evPickTarget();EV.modFor=EV.pickT+':'+EV.layer+':'+EV.sel+':'+EV.cb;
+  if(cur!=null&&cur>0x01&&cur<=0x1FFF&&(cur&0xFF)>=0x04&&(cur&0xFF)<=0xE7){const b=cur&0xFF;const v=(EV.mods&0xF)?(b|((EV.mods&0x1F)<<8)):b;evSetVal(v,true);}else evRender();
+}
+$('#ev-mods').addEventListener('click',e=>{const b=e.target.closest('.ev-mod');if(!b)return;EV.mods^=+b.dataset.m;if(!(EV.mods&0xF))EV.mods&=0xF;evApplyMods();});
+$('#ev-mod-r').addEventListener('change',e=>{EV.mods=e.target.checked?(EV.mods|0x10):(EV.mods&0xF);evApplyMods();});
 $('#ev-hex-go').addEventListener('click',()=>{const t=$('#ev-hex').value.trim();const v=parseInt(t,t.startsWith('0x')||/[a-f]/i.test(t)?16:10);if(isNaN(v)||v<0||v>0xFFFF){$('#ev-status').className='status err';$('#ev-status').textContent='キーコードは 0x0000〜0xFFFF で入力してください。';return;}evSetVal(v);});
 $('#ev-kb').addEventListener('click',e=>{const b=e.target.closest('.cb-badge');if(!b)return;e.stopPropagation();EV.cb=+b.dataset.ci;EV.pickT='ctap';EV.pickCombo=false;evRender();},true);
 $('#ev-cblist').addEventListener('click',e=>{const b=e.target.closest('[data-cb]');if(!b)return;EV.cb=+b.dataset.cb;EV.pickT='ctap';EV.pickCombo=false;evRender();});
