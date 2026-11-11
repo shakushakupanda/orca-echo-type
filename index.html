@@ -1684,7 +1684,8 @@ function showEditor(on){
   if(on){$('#onboard').hidden=true;$('#app').hidden=true;evRender();}
   else{if(S.model){$('#app').hidden=false;$('#onboard').hidden=true;renderAll();}else showOnboard();}
 }
-$('#edlink').addEventListener('click',()=>showEditor(!EV.on));
+$('#edlink').addEventListener('click',()=>{showEditor(!EV.on);try{history.replaceState(null,'',EV.on?'#edit':location.pathname+location.search);}catch(e){}});
+window.addEventListener('hashchange',()=>{if((location.hash==='#edit')!==!!EV.on)showEditor(location.hash==='#edit');});
 $('#ev-read').addEventListener('click',e=>{e.currentTarget.blur();evRead();});
 $('#ev-layers').addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(!b)return;EV.layer=+b.dataset.l;if(EV.pickT==='tap'||EV.pickT==='hold'||EV.pickT==='key')EV.pickT=EV.sel!=null?(EV.cur.keys[EV.layer][EV.sel]===HT_MARK?'tap':'key'):null;evRender();});
 $('#ev-kind').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b)evSetKind(b.dataset.k);});
@@ -1733,6 +1734,7 @@ $('#sharelink').href=SHARE_URL;
   }
   if(store.get('imported',false)&&loadKeymap(S.text)){showApp();}
   else showOnboard();
+  if(location.hash==='#edit')showEditor(true);
 })();
 </script>
 
