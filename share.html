@@ -697,7 +697,7 @@ function labelOf(k){
     case 'msc':return{m:'Scroll',s:(k.params[0]||'').toLowerCase()};
     case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
     case 'macro':{const n=+k.params[0];const mc=macroOf(n);return{m:mc?macroShort(mc):'M'+n,s:mc?'M'+n:'macro'};}
-    case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'kb':return k.params[0]==='0x7E1D'?{m:'Scroll',s:'ボール'}:{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
     case 'ht':return{m:'H/T',s:'中身不明'};
     case 'qmk':return{m:'?',s:(k.params[0]||'')};
     default:return{m:k.beh,s:''};

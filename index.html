@@ -161,6 +161,13 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .macros .cb{border-color:var(--hold);cursor:default}
 .macros .cb b{color:var(--hold)}
 .macros .cb.off{opacity:.5}
+.cb-badge rect{fill:var(--hold-soft);stroke:var(--hold);stroke-width:1.4}
+.cb-badge text{fill:var(--hold);font-family:var(--f-body);font-size:10.5px;font-weight:700;text-anchor:middle;pointer-events:none}
+.cb-badge{cursor:default}
+#ev-kb .cb-badge{cursor:pointer}
+.cb-badge.on rect{fill:var(--hold);}
+.cb-badge.on text{fill:var(--on-accent)}
+.cb-line{stroke:var(--hold);stroke-width:1.4;stroke-dasharray:3 3;opacity:.7}
 .key.combo-hl .cap{stroke:var(--hold);stroke-width:2.6;fill:var(--hold-soft)}
 .key.combo-hl text{fill:var(--hold);opacity:1}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -961,7 +968,7 @@ function labelOf(k){
     case 'msc':return{m:'Scroll',s:(k.params[0]||'').toLowerCase()};
     case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
     case 'macro':{const n=+k.params[0];const mc=macroOf(n);return{m:mc?macroShort(mc):'M'+n,s:mc?'M'+n:'macro'};}
-    case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'kb':return k.params[0]==='0x7E1D'?{m:'Scroll',s:'ボール'}:{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
     case 'ht':return{m:'H/T',s:'中身不明'};
     case 'qmk':return{m:'?',s:(k.params[0]||'')};
     default:return{m:k.beh,s:''};
@@ -1286,9 +1293,30 @@ function macroText(mc){
   return out.join(' → ');
 }
 function macroShort(mc){const a=mc.actions;if(a.length===1&&a[0].t==='text')return a[0].s.slice(0,4);const t=macroText(mc);return t.length<=5?t:'M'+mc.index;}
+/* draw combo badges between the keys of each combo: items = [{pts:[[x,y],..], label, cls}] */
+function drawComboOverlay(svg,items){
+  if(!svg)return;let g=svg.querySelector('g.combo-ov');if(g)g.remove();
+  if(!items.length)return;
+  g=document.createElementNS(NS,'g');g.setAttribute('class','combo-ov');
+  let html='';
+  for(const it of items){
+    const n=it.pts.length;if(n<2)continue;
+    let cx=0,cy=0;for(const [x,y] of it.pts){cx+=x;cy+=y;}cx/=n;cy/=n;
+    const xs=it.pts.map(p=>p[0]),ys=it.pts.map(p=>p[1]);const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
+    let by=cy;if(dx>=dy)by=cy-KW*0.40;
+    const far=it.pts.some(([x,y])=>Math.hypot(x-cx,y-by)>U*0.9);
+    if(far)for(const [x,y] of it.pts){const d=Math.hypot(x-cx,y-by)||1,k=Math.max(0,(d-KW*0.5)/d);html+=`<line class="cb-line" x1="${cx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${(cx+(x-cx)*k).toFixed(1)}" y2="${(by+(y-by)*k).toFixed(1)}"/>`;}
+    const t=[...it.label].length>6?[...it.label].slice(0,5).join('')+'…':it.label;
+    const w=Math.max(22,[...t].reduce((a,ch)=>a+(ch.charCodeAt(0)>255?11:6.6),0)+12);
+    html+=`<g class="cb-badge${it.cls?' '+it.cls:''}"${it.ci!=null?` data-ci="${it.ci}"`:''}><rect x="${(cx-w/2).toFixed(1)}" y="${(by-9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="9"/><text x="${cx.toFixed(1)}" y="${(by+4).toFixed(1)}">${esc(t)}</text><title>${esc(it.title||it.label)}</title></g>`;
+  }
+  g.innerHTML=html;svg.appendChild(g);
+}
 function renderCombos(viewL){
   const box=$('#combos');if(!box)return;const m=S.model;
   const list=m&&m.combos&&S.km&&S.km.src==='launcher'?m.combos:[];
+  drawComboOverlay($('#kb'),list.map((cb,ci)=>{const on=cb.mask==null?viewL===0:!!(cb.mask&(1<<viewL));if(!on||!cb.key)return null;
+    return {pts:cb.pos.map(i=>S.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:labelOf(cb.key).m||'?',ci,title:'コンボ: '+(labelOf(cb.key).m||'?')};}).filter(Boolean));
   if(!list.length){box.hidden=true;box.innerHTML='';return;}
   box.hidden=false;
   const keyName=i=>{const k=effKey(m,viewL,i)||effKey(m,0,i);return k?labelOf(k).m||'?':'?';};
@@ -1386,6 +1414,7 @@ document.addEventListener('keyup',e=>{
   const ch=S.emu.up(e);if(ch!=null)typeChar(ch);
 });
 window.addEventListener('blur',()=>{if(S.emu)S.emu.reset();});
+$('#kb').addEventListener('mouseover',e=>{const b=e.target.closest('.cb-badge');hlCombo(b?+b.dataset.ci:null);});
 $('#combos').addEventListener('mouseover',e=>{const el=e.target.closest('[data-ci]');hlCombo(el?+el.dataset.ci:null);});
 $('#combos').addEventListener('mouseleave',()=>hlCombo(null));
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mode=b.dataset.mode;store.set('mode',S.mode);S.view=null;S.started=false;b.blur();newItem();});
@@ -1524,6 +1553,14 @@ function evRenderBoard(){
     el.t.textContent=`${evPosName(el.pos)}: ${evKeyText(v,EV.cur.ht.get(evKey(L,el.pos)))}`;
     el.g.setAttribute('class','key'+(v===HT_MARK?' ev-ht':'')+(diffs.has(el.pos)?' ev-chg':'')+(EV.sel===el.pos&&!EV.pickCombo?' ev-sel':'')+(cbk.has(el.pos)?' ev-cbk':''));
   }
+  evComboOverlay();
+}
+function evComboOverlay(){
+  const L=EV.layer,items=[];
+  EV.cur.combos.forEach((c,i)=>{if(!c||!(c.layers&(1<<L))||c.keys.length<2)return;
+    const pts=c.keys.map(p=>{const j=EV.matrix.findIndex(m=>m.row*14+m.col===p);const g=EV.geo[j];return g?[g.x*U,g.y*U]:null;}).filter(Boolean);
+    items.push({pts,label:vShort(c.tap)||'?',ci:i,cls:EV.cb===i?'on':'',title:`コンボ #${i+1}: ${evCbText(c)}`});});
+  drawComboOverlay($('#ev-kb'),items);
 }
 function evSlotBtn(id,label,v,on){return `<button class="ev-slot${on?' on':''}" data-slot="${id}"><small>${label}</small><b>${esc(vLabel(v))}</b><code>${hx4(v)}</code></button>`;}
 function evRenderKey(){
@@ -1695,6 +1732,7 @@ $('#ev-cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]'
 $('#ev-q').addEventListener('input',e=>{EV.q=e.target.value;evRenderPicker();});
 $('#ev-keys').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(b)evSetVal(+b.dataset.v);});
 $('#ev-hex-go').addEventListener('click',()=>{const t=$('#ev-hex').value.trim();const v=parseInt(t,t.startsWith('0x')||/[a-f]/i.test(t)?16:10);if(isNaN(v)||v<0||v>0xFFFF){$('#ev-status').className='status err';$('#ev-status').textContent='キーコードは 0x0000〜0xFFFF で入力してください。';return;}evSetVal(v);});
+$('#ev-kb').addEventListener('click',e=>{const b=e.target.closest('.cb-badge');if(!b)return;e.stopPropagation();EV.cb=+b.dataset.ci;EV.pickT='ctap';EV.pickCombo=false;evRender();},true);
 $('#ev-cblist').addEventListener('click',e=>{const b=e.target.closest('[data-cb]');if(!b)return;EV.cb=+b.dataset.cb;EV.pickT='ctap';EV.pickCombo=false;evRender();});
 $('#ev-cb-add').addEventListener('click',()=>{const i=EV.cur.combos.findIndex(c=>!c);if(i<0){$('#ev-status').className='status err';$('#ev-status').textContent='コンボは30個までです。';return;}EV.cur.combos[i]={term:200,layers:1<<Math.min(EV.layer,7),keys:[],tap:0,hold:0};EV.cb=i;EV.pickCombo=true;EV.pickT='ctap';evRender();});
 $('#ev-cb-pick').addEventListener('click',()=>{EV.pickCombo=!EV.pickCombo;evRender();});
