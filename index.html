@@ -197,6 +197,58 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
 .seg-lab{font-size:12px;color:var(--muted);padding:0 8px;background:var(--surface);align-self:stretch;display:flex;align-items:center;border-right:1px solid var(--line)}
 @media (max-width:720px){.set{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.key.is-target .sonar{animation:none;opacity:.5;transform:scale(1.15)}.flash-ok,.key.missf .cap{animation:none}}
+
+.edlink{font:inherit;cursor:pointer}
+.editor-view{display:flex;flex-direction:column;gap:12px}
+.ev-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+.ev-top h2{margin:0 0 4px;font-size:clamp(20px,3vw,26px);font-weight:600}
+.ev-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#ev-kb{display:block;width:100%;height:auto;max-height:max(180px,calc(100dvh - 520px))}
+#ev-kb .key{cursor:pointer}
+#ev-kb .key.ev-sel .cap{stroke:var(--accent);stroke-width:3}
+#ev-kb .key.ev-chg .cap{fill:var(--mod-soft)}
+#ev-kb .key.ev-ht .cap{stroke:var(--hold);stroke-width:1.6}
+#ev-kb .key.ev-cbk .cap{fill:var(--hold-soft);stroke:var(--hold);stroke-width:2.4}
+#ev-kb .key:focus-visible .cap{stroke:var(--ink);stroke-width:3}
+.ev-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.ev-key,.ev-combo{display:flex;flex-direction:column;gap:10px}
+.ev-key h3,.ev-combo h3,.ev-picker h3,.ev-changes h3{margin:0}
+#ev-key-body,#ev-cb-body{display:flex;flex-direction:column;gap:10px}
+.ev-slots{display:flex;flex-wrap:wrap;gap:8px}
+.ev-slot{font:inherit;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:120px;padding:8px 12px;border-radius:10px;border:1px solid var(--key-edge);background:var(--bg);color:var(--ink);cursor:pointer;text-align:left}
+.ev-slot small{font-size:11px;color:var(--muted)}
+.ev-slot b{font-size:15px;font-weight:600}
+.ev-slot code{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.ev-slot.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.ev-term{display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+.ev-term input,.ev-term select,.ev-search input{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+.ev-term input{width:90px}
+.ev-cblist{display:flex;flex-direction:column;gap:6px}
+.ev-cb{font:inherit;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;text-align:left;font-size:13px}
+.ev-cb.on{border-color:var(--hold);box-shadow:0 0 0 1px var(--hold)}
+.ev-cb .muted{font-size:11px}
+.ev-cb.chg{border-style:dashed;border-color:var(--mod)}
+.ev-cbkeys{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px}
+.ev-cbkeys #ev-cb-keys{font-weight:600}
+#ev-cb-pick.on{background:var(--hold-soft);border-color:var(--hold);color:var(--hold)}
+.ev-picker{display:flex;flex-direction:column;gap:10px}
+.ev-search{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ev-search #ev-q{width:min(260px,100%)}
+.ev-search #ev-hex{width:90px;font-family:var(--f-mono)}
+.ev-keys{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto;padding:2px}
+.ev-k{font:inherit;font-size:12px;min-width:52px;padding:7px 9px;border-radius:8px;border:1px solid var(--key-edge);background:var(--key);color:var(--ink);cursor:pointer;line-height:1.2}
+.ev-k:hover{border-color:var(--muted)}
+.ev-k.cur{border-color:var(--accent);background:var(--accent-soft)}
+.ev-k small{display:block;font-size:10px;color:var(--muted)}
+.ev-changes{display:flex;flex-direction:column;gap:8px}
+.ev-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px;max-height:200px;overflow:auto}
+.ev-list li{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:5px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.ev-list li .arrow{color:var(--muted)}
+.ev-list li button{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0}
+.ev-list .empty{color:var(--muted);justify-content:center}
+.btn.danger{color:var(--miss);border-color:#5a2a27;background:transparent}
+.btn:disabled{opacity:.45;cursor:default}
+@media (max-width:820px){.ev-grid{grid-template-columns:1fr}}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
@@ -212,7 +264,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
         <p class="sub">キーマップを読んで、次に押すキーとレイヤーを光らせます</p>
       </div>
     </div>
-    <a class="toplink" id="sharelink" href="#">みんなの配列 →</a>
+    <div class="ev-actions"><button class="toplink edlink" id="edlink">キーマップ編集</button><a class="toplink" id="sharelink" href="#">みんなの配列 →</a></div>
   </header>
   <section class="onboard" id="onboard" hidden>
     <div class="ob-hero">
@@ -331,6 +383,56 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
     </div>
   </details>
   </div>
+
+  <section class="editor-view" id="editview" hidden>
+    <div class="ev-top">
+      <div>
+        <h2>キーマップ編集</h2>
+        <p class="note">キーボードから読み込んで、キー・長押しキー・コンボを変更し、まとめて書き込みます。書き込む前に、いまの設定を自動で保存します。</p>
+      </div>
+      <div class="ev-actions">
+        <button class="btn pri" id="ev-read">キーボードから読み込む</button>
+        <label class="btn" id="ev-json-l" hidden>JSON を当てはめる<input type="file" id="ev-json" accept=".json" hidden></label>
+      </div>
+    </div>
+    <p class="status" id="ev-status"></p>
+    <div id="ev-body" hidden>
+      <div class="ev-layers chips" id="ev-layers"></div>
+      <div class="kbwrap"><svg id="ev-kb" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="編集中の配列"></svg></div>
+      <div class="ev-grid">
+        <section class="panel ev-key" id="ev-key">
+          <h3 id="ev-key-h">キーを選んでください</h3>
+          <div id="ev-key-body" hidden>
+            <div class="seg" id="ev-kind" role="group" aria-label="キーの種類"><button data-k="plain">普通のキー</button><button data-k="ht">長押しキー</button></div>
+            <div class="ev-slots" id="ev-slots"></div>
+            <div class="ev-term" id="ev-term-row" hidden><label for="ev-term">長押しの判定時間</label><input id="ev-term" type="number" min="50" max="1000" step="10"><span class="muted small">ms</span></div>
+            <p class="note small" id="ev-key-note"></p>
+          </div>
+        </section>
+        <section class="panel ev-combo" id="ev-combo">
+          <div class="vhead"><h3>コンボ</h3><button class="btn" id="ev-cb-add">コンボを追加</button></div>
+          <div class="ev-cblist" id="ev-cblist"></div>
+          <div id="ev-cb-body" hidden>
+            <div class="ev-cbkeys"><span class="muted small">同時押しするキー</span><span id="ev-cb-keys"></span><button class="btn" id="ev-cb-pick">配列図で選ぶ</button></div>
+            <div class="ev-term"><label for="ev-cb-layer">有効なレイヤー</label><select id="ev-cb-layer"></select></div>
+            <div class="ev-slots" id="ev-cb-slots"></div>
+            <div class="ev-term"><label for="ev-cb-term">判定時間</label><input id="ev-cb-term" type="number" min="10" max="1000" step="10"><span class="muted small">ms</span></div>
+            <div><button class="btn danger" id="ev-cb-del">このコンボを削除</button></div>
+          </div>
+        </section>
+      </div>
+      <section class="panel ev-picker" id="ev-picker" hidden>
+        <div class="vhead"><h3 id="ev-pick-h">割り当てるキー</h3><div class="ev-search"><input id="ev-q" type="search" placeholder="検索（例: enter, mo, スクロール）" aria-label="キーを検索"><input id="ev-hex" placeholder="0x0000" aria-label="キーコードを直接入力" spellcheck="false"><button class="btn" id="ev-hex-go">直接入力</button></div></div>
+        <div class="chips" id="ev-cats"></div>
+        <div class="ev-keys" id="ev-keys"></div>
+      </section>
+      <section class="panel ev-changes">
+        <div class="vhead"><h3>変更点 <span class="muted small" id="ev-count"></span></h3><div class="ev-actions"><button class="btn" id="ev-revert">すべて取り消す</button><button class="btn pri" id="ev-write" disabled>キーボードに書き込む</button></div></div>
+        <ul class="ev-list" id="ev-list"></ul>
+        <p class="note small">書き込み前に、いまのキーボードの設定を JSON で保存します。書き込み後は読み直して、正しく入ったか確かめます。</p>
+      </section>
+    </div>
+  </section>
   <footer class="foot">非公式ツールです。Keychron とは関係ありません。配列は USB でつないだキーボード、または Keychron Launcher の書き出しファイルから読み込みます。</footer>
 </div>
 
@@ -842,7 +944,7 @@ function tapLabel(t){
   else base=NONCHAR[t.u]||t.u.replace(/^C_/,'');
   return (t.ctrl?(S.mod==='gui'?'Ctrl+':'^'):'')+(t.gui?'⌘':'')+(t.alt?'⌥':'')+base;
 }
-function lname(L){const l=S.model.layers[L];return l?l.name:'L'+L;}
+function lname(L){const l=S.model&&S.model.layers[L];return l?l.name:(L===0?'ベース':'L'+L);}
 function labelOf(k){
   if(!k)return{m:'',s:''};
   if(k.none)return{m:'·',s:''};
@@ -1088,12 +1190,18 @@ function hidCmd(d,bytes,match,timeout){
     d.sendReport(0,b).catch(err=>{clearTimeout(t);d.removeEventListener('inputreport',h);rej(err);});
   });
 }
-async function readFromKeyboard(onp){
+async function getOrca(ask){
   if(!('hid' in navigator))throw Object.assign(new Error('このブラウザは USB 接続に対応していません。Chrome か Edge で開いてください。'),{code:'nohid'});
-  const devs=await navigator.hid.requestDevice({filters:[{usagePage:0xFF60,usage:0x61}]});
-  const d=devs[0];if(!d)throw Object.assign(new Error('接続をキャンセルしました。'),{code:'cancel'});
+  let d=null;
+  if(!ask){const ds=await navigator.hid.getDevices();d=ds.find(x=>x.collections.some(c=>c.usagePage===0xFF60&&c.usage===0x61)&&/orca/i.test(x.productName||''))||null;}
+  if(!d){const devs=await navigator.hid.requestDevice({filters:[{usagePage:0xFF60,usage:0x61}]});d=devs[0];}
+  if(!d)throw Object.assign(new Error('接続をキャンセルしました。'),{code:'cancel'});
   if(!/orca/i.test(d.productName||''))throw new Error((d.productName||'このキーボード')+' は Orca echo ではないようです。');
   if(!d.opened)await d.open();
+  return d;
+}
+async function readFromKeyboard(onp,dev){
+  const d=dev||await getOrca(true);
   try{
     const lc=(await hidCmd(d,[0x11],a=>a[0]===0x11))[1];
     if(!lc||lc>16)throw new Error('レイヤー数を読み取れませんでした。');
@@ -1116,7 +1224,7 @@ async function readFromKeyboard(onp){
     try{if(onp)onp('コンボを読み込み中…',0.98);combos=await readCombos(d);}catch(e){}
     try{if(onp)onp('マクロを読み込み中…',0.99);macros=await readMacros(d);}catch(e){}
     return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps,combos,macros};
-  }finally{try{await d.close();}catch(e){}}
+  }finally{if(!dev){try{await d.close();}catch(e){}}}
 }
 async function kbImport(statusEl,after){
   const say=(t,c)=>{statusEl.className='status'+(c?' '+c:'');statusEl.textContent=t;};
@@ -1132,9 +1240,9 @@ async function kbImport(statusEl,after){
     else say((e&&e.message)||'読み込めませんでした。','err');
   }
 }
-function saveJson(obj){
+function saveJson(obj,suffix){
   try{const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    const d=new Date(obj.readAt||Date.now());a.download=`Keymap-Orca_echo-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}${String(d.getMinutes()).padStart(2,'0')}-holdtap.json`;
+    const d=new Date(obj.readAt||Date.now());a.download=`Keymap-Orca_echo-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}${String(d.getMinutes()).padStart(2,'0')}-${suffix||'holdtap'}.json`;
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return true;}catch(e){return false;}
 }
 
@@ -1205,7 +1313,7 @@ async function readCombos(d){
     const a=await hidCmd(d,[0xa7,0x20,0x0a,i],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x0a);
     if(a[3]!==0)continue;
     const keys=[a[7],a[8],a[9],a[10]].filter(x=>x!==0xff);
-    out.push({index:i,term:a[4]|(a[5]<<8),layers:a[6],keys,kc:a[11]|(a[12]<<8)});
+    out.push({index:i,term:a[4]|(a[5]<<8),layers:a[6],keys,kc:a[11]|(a[12]<<8),hold:a[13]|(a[14]<<8)});
   }
   return out;
 }
@@ -1310,6 +1418,294 @@ window.addEventListener('blur',()=>{$('#focusnote').hidden=false;});
 window.addEventListener('focus',()=>{$('#focusnote').hidden=true;});
 document.addEventListener('pointerdown',()=>{$('#focusnote').hidden=true;});
 setInterval(renderStats,1000);
+
+
+/* ===================== keymap editor (writes to the keyboard) =====================
+   key:       05 <L> <r> <c> <kc hi> <kc lo>                          (VIA set keycode)
+   hold-tap:  key = 0x7E1A, then a7 20 07 <L> <r> <c> tap(LE16) hold(LE16) term(LE16); delete a7 20 0f <L> <r> <c>
+   combo:     a7 20 09 <slot> term(LE16) <layer bits> k1 k2 k3 k4 (0xff = none) tap(LE16) hold(LE16); delete a7 20 0e <slot> */
+const EV={orig:null,cur:null,matrix:null,geo:null,layer:0,sel:null,cb:null,pickT:null,pickCombo:false,cat:'文字',q:'',els:[],nLayers:8,busy:false};
+const evKey=(L,p)=>L+':'+p;
+function evClone(st){return {keys:st.keys.map(a=>a.slice()),ht:new Map([...st.ht].map(([k,v])=>[k,Object.assign({},v)])),combos:st.combos.map(c=>c?Object.assign({},c,{keys:c.keys.slice()}):null)};}
+function evFromRead(obj){
+  const keys=obj.keymap.map(l=>{const a=new Array(56).fill(0);for(const e of l)if(e.row<4&&e.col<14)a[e.row*14+e.col]=e.val|0;return a;});
+  const ht=new Map();for(const h of obj.holdTaps||[])ht.set(evKey(h.layer,h.row*14+h.col),{tap:h.tap,hold:h.hold,term:h.term||200});
+  const combos=new Array(30).fill(null);for(const c of obj.combos||[])if(c.index<30)combos[c.index]={term:c.term||200,layers:c.layers||1,keys:c.keys.slice(0,4),tap:c.kc|0,hold:c.hold|0};
+  return {keys,ht,combos};
+}
+function evToObj(st){
+  return {source:'keyboard',device:'Orca echo',readAt:new Date().toISOString(),
+    keymap:st.keys.map(a=>a.map((v,i)=>({col:i%14,row:Math.floor(i/14),val:v}))),
+    holdTaps:[...st.ht].filter(([k])=>{const [L,p]=k.split(':').map(Number);return st.keys[L]&&st.keys[L][p]===HT_MARK;}).map(([k,v])=>{const [L,p]=k.split(':').map(Number);return {layer:L,row:Math.floor(p/14),col:p%14,tap:v.tap,hold:v.hold,term:v.term};}),
+    combos:st.combos.map((c,i)=>c?{index:i,term:c.term,layers:c.layers,keys:c.keys.slice(),kc:c.tap,hold:c.hold}:null).filter(Boolean)};
+}
+/* label for a raw keycode */
+function vLabel(v){
+  if(v===0)return '割り当てなし';if(v===1)return '透過 ▽';
+  if(v===0x7E1D)return 'ボールスクロール';
+  if(v===HT_MARK)return '長押しキー';
+  if(v>=0x5220&&v<=0x523F)return 'MO('+(v&0x1F)+')';if(v>=0x5260&&v<=0x527F)return 'TG('+(v&0x1F)+')';if(v>=0x5200&&v<=0x521F)return 'TO('+(v&0x1F)+')';
+  const z=qmkToZmk(v);
+  try{const k=parseBinding(z,x=>/^\d+$/.test(x)?+x:null);const l=labelOf(k);return (l.m||'?')+(l.s&&k.beh!=='kp'?' '+l.s:'');}catch(e){return z;}
+}
+function vShort(v){if(v===0)return '';if(v===1)return '▽';if(v===0x7E1D)return 'Scroll';const t=vLabel(v);return t;}
+const hx4=v=>'0x'+(v>>>0).toString(16).toUpperCase().padStart(4,'0');
+/* keycode catalogue for the picker */
+const EV_CATS=(()=>{
+  const C=[],add=(cat,v,name,kw)=>C.push({cat,v,name:name||null,kw:(kw||'').toLowerCase()});
+  for(let i=0;i<26;i++)add('文字',0x04+i);
+  for(let i=0;i<10;i++)add('数字・記号',0x1E+i);
+  for(const v of [0x2D,0x2E,0x2F,0x30,0x31,0x33,0x34,0x35,0x36,0x37,0x38])add('数字・記号',v);
+  for(const b of [0x1E,0x1F,0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x2D,0x2E,0x2F,0x30,0x31,0x33,0x34,0x35,0x36,0x37,0x38])add('数字・記号',0x200|b,null,'shift');
+  for(const [v,kw] of [[0x28,'enter return'],[0x29,'esc escape'],[0x2A,'backspace bspc'],[0x2B,'tab'],[0x2C,'space スペース'],[0x4C,'delete del'],[0x49,'insert'],[0x4A,'home'],[0x4D,'end'],[0x4B,'pageup'],[0x4E,'pagedown'],[0x52,'up 上'],[0x51,'down 下'],[0x50,'left 左'],[0x4F,'right 右'],[0x39,'caps']])add('編集・移動',v,null,kw);
+  for(const [v,kw] of [[0xE0,'ctrl control'],[0xE1,'shift'],[0xE2,'alt option opt'],[0xE3,'gui cmd command win'],[0xE4,'ctrl right'],[0xE5,'shift right'],[0xE6,'alt right'],[0xE7,'gui cmd right']])add('修飾キー',v,['左Ctrl','左Shift','左Alt/Opt','左Cmd/Win','右Ctrl','右Shift','右Alt/Opt','右Cmd/Win'][v-0xE0],kw);
+  for(const [v,n,kw] of [[0x90,'かな','lang1 日本語 kana'],[0x91,'英数','lang2 eisu'],[0x8A,'変換','henkan'],[0x8B,'無変換','muhenkan'],[0x88,'カナ','kana'],[0x87,'\\ ろ','ro intl1'],[0x89,'¥','yen intl3']])add('日本語',v,n,kw);
+  for(let i=0;i<12;i++)add('F キー',0x3A+i,null,'f'+(i+1));
+  for(const [v,n,kw] of [[0xD1,'左クリック','click mouse'],[0xD2,'右クリック','click mouse'],[0xD3,'中クリック','click mouse'],[0xD4,'戻る','back mouse'],[0xD5,'進む','forward mouse'],[0xD9,'ホイール上','wheel scroll'],[0xDA,'ホイール下','wheel scroll'],[0xDB,'ホイール左','wheel scroll'],[0xDC,'ホイール右','wheel scroll'],[0x7E1D,'ボールスクロール','scroll trackball ball スクロール']])add('マウス',v,n,kw);
+  for(const [v,n] of [[0xA8,'ミュート'],[0xA9,'音量+'],[0xAA,'音量−'],[0xAB,'次の曲'],[0xAC,'前の曲'],[0xAE,'再生/停止']])add('メディア',v,n,'media volume');
+  for(let n=0;n<8;n++)add('レイヤー',0x5220+n,'MO('+n+')','mo momentary 押している間 layer');
+  for(let n=0;n<8;n++)add('レイヤー',0x5260+n,'TG('+n+')','tg toggle 切替 layer');
+  for(let n=0;n<8;n++)add('レイヤー',0x5200+n,'TO('+n+')','to layer');
+  add('レイヤー',0x7C77,'Fn1（tri-layer）','tri lower');add('レイヤー',0x7C78,'Fn2（tri-layer）','tri upper');
+  add('その他',0x0001,'透過','trans transparent');add('その他',0x0000,'割り当てなし','none no');
+  for(let n=0;n<16;n++)add('その他',0x7700+n,'マクロ M'+n,'macro');
+  return C;
+})();
+const EV_CAT_NAMES=[...new Set(EV_CATS.map(c=>c.cat))];
+function evHas(){return !!(EV.orig&&EV.cur);}
+function evDiffs(){
+  if(!evHas())return [];
+  const out=[],o=EV.orig,c=EV.cur;
+  for(let L=0;L<c.keys.length;L++)for(let p=0;p<56;p++){
+    const a=o.keys[L][p],b=c.keys[L][p];const ha=a===HT_MARK?o.ht.get(evKey(L,p)):null,hb=b===HT_MARK?c.ht.get(evKey(L,p)):null;
+    const same=a===b&&(!ha&&!hb||ha&&hb&&ha.tap===hb.tap&&ha.hold===hb.hold&&ha.term===hb.term);
+    if(!same)out.push({t:'key',L,p,from:a,to:b,hf:ha,ht:hb});
+  }
+  for(let i=0;i<30;i++){const a=o.combos[i],b=c.combos[i];if(JSON.stringify(a)!==JSON.stringify(b))out.push({t:'combo',i,from:a,to:b});}
+  return out;
+}
+function evKeyText(v,h){return v===HT_MARK&&h?`${vLabel(h.tap)} ／ 長押し ${vLabel(h.hold)}`:vLabel(v);}
+function evBaseName(p){const v=EV.cur.keys[0][p];if(v===HT_MARK){const h=EV.cur.ht.get(evKey(0,p));return h?vShort(h.tap):'H/T';}return vShort(v)||evPosName(p);}
+function evCbText(cb){if(!cb)return 'なし';const ks=cb.keys.map(evBaseName).join(' + ');return `${ks} → ${vLabel(cb.tap)}${cb.hold?' ／ 長押し '+vLabel(cb.hold):''}`;}
+function evPosName(p){const g=EV.geo&&EV.geo[EV.matrix.findIndex(m=>m.row*14+m.col===p)];return (g?(g.side==='L'?'左':'右')+g.finger:'')+` (${Math.floor(p/14)},${p%14})`;}
+/* ---------- render ---------- */
+function evRender(){
+  $('#ev-body').hidden=!evHas();$('#ev-json-l').hidden=!evHas();
+  if(!evHas())return;
+  const n=EV.cur.keys.length;
+  $('#ev-layers').innerHTML=Array.from({length:n},(_,L)=>`<button class="chip${L===EV.layer?' on':''}" data-l="${L}">${L===0?'ベース':'Layer '+L}</button>`).join('');
+  evRenderBoard();evRenderKey();evRenderCombos();evRenderPicker();evRenderChanges();
+}
+function evBuildBoard(){
+  const svg=$('#ev-kb');svg.innerHTML='';EV.els=[];
+  const k=U/OE_PX,pad=U*0.2;const x0=283/OE_PX*U,y0=150/OE_PX*U,w=(1565-283)/OE_PX*U,h=(622-150)/OE_PX*U;
+  svg.setAttribute('viewBox',`${x0-pad} ${y0-pad} ${w+pad*2} ${h+pad*2}`);
+  const dg=document.createElementNS(NS,'g');dg.setAttribute('transform',`scale(${k})`);
+  dg.innerHTML=OE_DECO.map(d=>d.t==='body'?`<path class="body" d="${d.d}"/>`:d.t==='ball'?`<circle class="ball" cx="${d.x}" cy="${d.y}" r="${d.r}"/>`:`<g transform="translate(${d.x} ${d.y}) rotate(${d.rot})"><rect class="wheel" x="${-d.w/2}" y="${-d.h/2}" width="${d.w}" height="${d.h}" rx="9"/></g>`).join('');
+  svg.appendChild(dg);
+  EV.geo.forEach((p,i)=>{
+    const pos=EV.matrix[i].row*14+EV.matrix[i].col;
+    const g=document.createElementNS(NS,'g');g.setAttribute('class','key');g.setAttribute('tabindex','0');g.setAttribute('role','button');
+    g.setAttribute('transform',`translate(${(p.x*U).toFixed(1)} ${(p.y*U).toFixed(1)}) rotate(${p.rot||0})`);
+    const H=KW*(p.h||1);g.innerHTML=`<rect class="cap" x="${-KW/2}" y="${-H/2}" width="${KW}" height="${H}" rx="9"/><text class="m" y="5"></text><text class="s" y="19"></text><title></title>`;
+    const go=()=>evClickKey(pos);g.addEventListener('click',go);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+    svg.appendChild(g);EV.els.push({g,pos,m:g.querySelector('.m'),s:g.querySelector('.s'),t:g.querySelector('title')});
+  });
+}
+function evRenderBoard(){
+  const L=EV.layer,diffs=new Set(evDiffs().filter(d=>d.t==='key'&&d.L===L).map(d=>d.p));
+  const cbk=new Set(EV.cb!=null&&EV.cur.combos[EV.cb]?EV.cur.combos[EV.cb].keys:[]);
+  for(const el of EV.els){
+    const v=EV.cur.keys[L][el.pos];let m,s='';
+    if(v===HT_MARK){const h=EV.cur.ht.get(evKey(L,el.pos));m=h?vShort(h.tap):'H/T';s=h?vShort(h.hold):'中身不明';}
+    else {m=vShort(v);if(v===1&&L>0){const b=EV.cur.keys[0][el.pos];m='▽';s=vShort(b===HT_MARK?(EV.cur.ht.get(evKey(0,el.pos))||{tap:0}).tap:b);}}
+    if([...m].length>7)m=[...m].slice(0,6).join('')+'…';if([...s].length>8)s=[...s].slice(0,7).join('')+'…';
+    el.m.textContent=m;el.s.textContent=s;const len=[...m].length;el.m.setAttribute('font-size',len<=1?18:len<=2?15:len<=4?12:10);el.m.setAttribute('y',s?1:5);
+    el.t.textContent=`${evPosName(el.pos)}: ${evKeyText(v,EV.cur.ht.get(evKey(L,el.pos)))}`;
+    el.g.setAttribute('class','key'+(v===HT_MARK?' ev-ht':'')+(diffs.has(el.pos)?' ev-chg':'')+(EV.sel===el.pos&&!EV.pickCombo?' ev-sel':'')+(cbk.has(el.pos)?' ev-cbk':''));
+  }
+}
+function evSlotBtn(id,label,v,on){return `<button class="ev-slot${on?' on':''}" data-slot="${id}"><small>${label}</small><b>${esc(vLabel(v))}</b><code>${hx4(v)}</code></button>`;}
+function evRenderKey(){
+  const body=$('#ev-key-body');
+  if(EV.sel==null){$('#ev-key-h').textContent='キーを選んでください';body.hidden=true;return;}
+  const L=EV.layer,p=EV.sel,v=EV.cur.keys[L][p];const isHT=v===HT_MARK;const h=EV.cur.ht.get(evKey(L,p));
+  $('#ev-key-h').textContent=`${L===0?'ベース':'Layer '+L} · ${evPosName(p)}`;body.hidden=false;
+  document.querySelectorAll('#ev-kind button').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.k==='ht')===isHT));
+  if(isHT){
+    $('#ev-slots').innerHTML=evSlotBtn('tap','短押し',h?h.tap:0,EV.pickT==='tap')+evSlotBtn('hold','長押し',h?h.hold:0,EV.pickT==='hold');
+    $('#ev-term-row').hidden=false;$('#ev-term').value=h?h.term:200;
+    $('#ev-key-note').textContent='長押しには、レイヤーキー（MO）や修飾キー、ボールスクロールなども入れられます。';
+  }else{
+    $('#ev-slots').innerHTML=evSlotBtn('key','割り当て',v,EV.pickT==='key');$('#ev-term-row').hidden=true;
+    $('#ev-key-note').textContent=L>0?'「透過 ▽」にすると、ベースレイヤーと同じキーになります。':'';
+  }
+}
+function evRenderCombos(){
+  const list=$('#ev-cblist'),cs=EV.cur.combos,changed=new Set(evDiffs().filter(d=>d.t==='combo').map(d=>d.i));
+  const rows=cs.map((c,i)=>c?`<button class="ev-cb${EV.cb===i?' on':''}${changed.has(i)?' chg':''}" data-cb="${i}"><span>${esc(evCbText(c))}</span><span class="muted">#${i+1} · ${evLayersText(c.layers)}</span></button>`:'').join('');
+  list.innerHTML=rows||'<p class="note small">コンボはまだありません。</p>';
+  const body=$('#ev-cb-body');const c=EV.cb!=null?cs[EV.cb]:null;
+  if(!c){body.hidden=true;return;}
+  body.hidden=false;
+  $('#ev-cb-keys').textContent=c.keys.length?c.keys.map(evBaseName).join(' + '):'（未選択）';
+  $('#ev-cb-pick').classList.toggle('on',EV.pickCombo);$('#ev-cb-pick').textContent=EV.pickCombo?'選び終わる':'配列図で選ぶ';
+  const sel=$('#ev-cb-layer');sel.innerHTML=Array.from({length:EV.cur.keys.length},(_,L)=>`<option value="${1<<L}">${L===0?'ベース':'Layer '+L}</option>`).join('');
+  if([...sel.options].some(o=>+o.value===c.layers))sel.value=String(c.layers);
+  else{sel.insertAdjacentHTML('afterbegin',`<option value="${c.layers}">そのまま（${c.layers}）</option>`);sel.value=String(c.layers);}
+  $('#ev-cb-slots').innerHTML=evSlotBtn('ctap','同時押しで出すキー',c.tap,EV.pickT==='ctap')+evSlotBtn('chold','長押し（任意）',c.hold,EV.pickT==='chold');
+  $('#ev-cb-term').value=c.term;
+}
+function evLayersText(m){const ls=[];for(let L=0;L<8;L++)if(m&(1<<L))ls.push(L===0?'ベース':'L'+L);return ls.join('・')||'—';}
+function evPickTarget(){
+  if(!EV.pickT)return null;
+  if(EV.pickT==='key')return EV.cur.keys[EV.layer][EV.sel];
+  if(EV.pickT==='tap'||EV.pickT==='hold'){const h=EV.cur.ht.get(evKey(EV.layer,EV.sel));return h?h[EV.pickT]:0;}
+  const c=EV.cur.combos[EV.cb];return c?(EV.pickT==='ctap'?c.tap:c.hold):0;
+}
+function evRenderPicker(){
+  const box=$('#ev-picker');if(!EV.pickT){box.hidden=true;return;}box.hidden=false;
+  $('#ev-pick-h').textContent={key:'割り当てるキー',tap:'短押しのキー',hold:'長押しのキー',ctap:'コンボで出すキー',chold:'コンボの長押しキー'}[EV.pickT];
+  $('#ev-cats').innerHTML=EV_CAT_NAMES.map(c=>`<button class="chip${c===EV.cat&&!EV.q?' on':''}" data-cat="${c}">${c}</button>`).join('');
+  const q=EV.q.trim().toLowerCase(),cur=evPickTarget();
+  const items=EV_CATS.filter(c=>q?((c.name||vLabel(c.v)).toLowerCase().includes(q)||c.kw.includes(q)||hx4(c.v).toLowerCase().includes(q)):c.cat===EV.cat);
+  $('#ev-keys').innerHTML=items.map(c=>`<button class="ev-k${c.v===cur?' cur':''}" data-v="${c.v}" title="${hx4(c.v)}">${esc(c.name||vLabel(c.v))}${c.kw==='shift'?'<small>Shift+</small>':''}</button>`).join('')||'<p class="note small">見つかりません。キーコードを直接入力することもできます。</p>';
+}
+function evRenderChanges(){
+  const ds=evDiffs();$('#ev-count').textContent=ds.length?`${ds.length} 件`:'';
+  $('#ev-write').disabled=!ds.length||EV.busy;
+  $('#ev-list').innerHTML=ds.length?ds.map((d,i)=>d.t==='key'
+    ?`<li><span>${d.L===0?'ベース':'Layer '+d.L} · ${esc(evPosName(d.p))}：${esc(evKeyText(d.from,d.hf))} <span class="arrow">→</span> <b>${esc(evKeyText(d.to,d.ht))}</b></span><button data-undo="${i}">戻す</button></li>`
+    :`<li><span>コンボ #${d.i+1}：${esc(evCbText(d.from))} <span class="arrow">→</span> <b>${esc(d.to?evCbText(d.to):'削除')}</b></span><button data-undo="${i}">戻す</button></li>`).join(''):'<li class="empty">まだ変更はありません</li>';
+}
+/* ---------- interactions ---------- */
+function evClickKey(p){
+  if(EV.pickCombo&&EV.cb!=null){const c=EV.cur.combos[EV.cb];const i=c.keys.indexOf(p);if(i>=0)c.keys.splice(i,1);else if(c.keys.length<4)c.keys.push(p);evRender();return;}
+  EV.sel=p;EV.pickT=EV.cur.keys[EV.layer][p]===HT_MARK?'tap':'key';evRender();
+}
+function evSetVal(v){
+  v=v&0xFFFF;
+  if(EV.pickT==='key'){if(v===HT_MARK){evSetKind('ht');return;}EV.cur.keys[EV.layer][EV.sel]=v;}
+  else if(EV.pickT==='tap'||EV.pickT==='hold'){const k=evKey(EV.layer,EV.sel);const h=EV.cur.ht.get(k)||{tap:0,hold:0,term:200};h[EV.pickT]=v;EV.cur.ht.set(k,h);if(EV.pickT==='tap')EV.pickT='hold';}
+  else if(EV.cb!=null){const c=EV.cur.combos[EV.cb];if(EV.pickT==='ctap')c.tap=v;else c.hold=v;}
+  evRender();
+}
+function evSetKind(kind){
+  if(EV.sel==null)return;const L=EV.layer,p=EV.sel,k=evKey(L,p),v=EV.cur.keys[L][p];
+  if(kind==='ht'&&v!==HT_MARK){const prev=EV.cur.ht.get(k);EV.cur.ht.set(k,prev||{tap:v>1&&v<=0xFF?v:0,hold:0x5221,term:200});EV.cur.keys[L][p]=HT_MARK;EV.pickT='hold';}
+  else if(kind==='plain'&&v===HT_MARK){const h=EV.cur.ht.get(k);EV.cur.keys[L][p]=h?h.tap:0;EV.pickT='key';}
+  evRender();
+}
+/* apply a JSON (Launcher export, our holdtap JSON, or a converted moNa2 file) on top of the current edit */
+function evApplyJson(obj){
+  if(!obj||!Array.isArray(obj.keymap))throw new Error('キーマップの JSON ではないようです。');
+  const st=evFromRead(Object.assign({holdTaps:[],combos:[]},obj));
+  for(let L=0;L<Math.min(st.keys.length,EV.cur.keys.length);L++)for(let p=0;p<56;p++){
+    if(!EV.matrix.some(m=>m.row*14+m.col===p))continue;
+    let v=st.keys[L][p];
+    if(v>=0x2000&&v<0x5000){const tap=v&0xFF;let hold;if(v>=0x4000)hold=0x5220|((v>>8)&0xF);else{const m=(v>>8)&0x1F;const base=(m&0x10)?0xE4:0xE0;const bit=[1,2,4,8].findIndex(b=>m&b);hold=base+(bit<0?0:bit);}EV.cur.ht.set(evKey(L,p),{tap,hold,term:200});v=HT_MARK;}
+    else if(v===HT_MARK){const h=st.ht.get(evKey(L,p));if(h)EV.cur.ht.set(evKey(L,p),h);else continue;}
+    EV.cur.keys[L][p]=v;
+  }
+  if(Array.isArray(obj.combos))EV.cur.combos=st.combos;
+}
+/* ---------- device I/O ---------- */
+async function evRead(){
+  const st=$('#ev-status');const say=(t,c)=>{st.className='status'+(c?' '+c:'');st.textContent=t;};
+  if(EV.busy)return;EV.busy=true;
+  try{
+    say('一覧から Orca echo を選んでください…');
+    const d=await getOrca(false);
+    let obj;try{obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`),d);}finally{try{await d.close();}catch(e){}}
+    EV.raw=obj;EV.orig=evFromRead(obj);EV.cur=evClone(EV.orig);
+    EV.matrix=importLauncher(obj).matrix;EV.geo=launcherGeometry(EV.matrix);EV.sel=null;EV.cb=null;EV.pickT=null;EV.pickCombo=false;
+    evBuildBoard();say(`読み込みました（${obj.keymap.length} レイヤー・長押しキー ${obj.holdTaps.length} 個・コンボ ${obj.combos.length} 個）。キーを押して編集してください。`,'ok');
+  }catch(e){
+    if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');
+    else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。https://shakushakupanda.github.io/orca-echo-type/ を Chrome / Edge で開いてください。','err');
+    else say(((e&&e.message)||'読み込めませんでした。')+' Keychron Launcher を開いている場合は閉じてから試してください。','err');
+  }finally{EV.busy=false;evRender();}
+}
+async function evWrite(){
+  const st=$('#ev-status');const say=(t,c)=>{st.className='status'+(c?' '+c:'');st.textContent=t;};
+  const ds=evDiffs();if(!ds.length||EV.busy)return;
+  const btn=$('#ev-write');
+  if(btn.dataset.confirm!=='1'){btn.dataset.confirm='1';btn.textContent=`${ds.length} 件を書き込む（もう一度押す）`;say('もう一度押すと、キーボードに書き込みます。','');return;}
+  btn.dataset.confirm='';btn.textContent='キーボードに書き込む';
+  EV.busy=true;evRenderChanges();
+  let d=null;
+  try{
+    saveJson(Object.assign({},evToObj(EV.orig),{note:'書き込み前のバックアップ'}),'backup');
+    d=await getOrca(false);
+    const ok=(a,op)=>{if(!a)throw new Error('応答がありません');return a;};
+    let n=0;
+    for(const x of ds){
+      say(`書き込み中… ${++n}/${ds.length}`);
+      if(x.t==='key'){
+        const r=Math.floor(x.p/14),c=x.p%14;
+        if(x.to===HT_MARK){
+          const h=x.ht||{tap:0,hold:0,term:200};
+          await hidCmd(d,[0x05,x.L,r,c,HT_MARK>>8,HT_MARK&255],a=>a[0]===0x05);
+          const a=await hidCmd(d,[0xa7,0x20,0x07,x.L,r,c,h.tap&255,h.tap>>8,h.hold&255,h.hold>>8,h.term&255,h.term>>8],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x07);
+          if(a[3]!==0)throw new Error(`長押しキーの書き込みが拒否されました（${evPosName(x.p)}）`);
+        }else{
+          await hidCmd(d,[0x05,x.L,r,c,x.to>>8,x.to&255],a=>a[0]===0x05);
+          if(x.from===HT_MARK)await hidCmd(d,[0xa7,0x20,0x0f,x.L,r,c],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x0f);
+        }
+      }else{
+        if(!x.to){await hidCmd(d,[0xa7,0x20,0x0e,x.i],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x0e);}
+        else{
+          const c=x.to,k=[0,1,2,3].map(j=>c.keys[j]==null?0xff:c.keys[j]);
+          if(c.keys.length<2)throw new Error(`コンボ #${x.i+1} は2キー以上を選んでください`);
+          const a=await hidCmd(d,[0xa7,0x20,0x09,x.i,c.term&255,c.term>>8,c.layers&255,...k,c.tap&255,c.tap>>8,c.hold&255,c.hold>>8],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x09);
+          if(a[3]!==0)throw new Error(`コンボ #${x.i+1} の書き込みが拒否されました`);
+        }
+      }
+    }
+    say('書き込みました。読み直して確認しています…');
+    const back=await readFromKeyboard((t,p)=>say(`確認中… ${Math.round(p*100)}%`),d);
+    const now=evFromRead(back);
+    const want=EV.cur;const bad=[];
+    for(const x of ds){
+      if(x.t==='key'){const a=now.keys[x.L][x.p];if(a!==want.keys[x.L][x.p])bad.push(evPosName(x.p));else if(a===HT_MARK){const h1=now.ht.get(evKey(x.L,x.p)),h2=want.ht.get(evKey(x.L,x.p));if(!h1||h1.tap!==h2.tap||h1.hold!==h2.hold||h1.term!==h2.term)bad.push(evPosName(x.p)+'（長押し）');}}
+      else if(JSON.stringify(now.combos[x.i])!==JSON.stringify(want.combos[x.i]))bad.push('コンボ #'+(x.i+1));
+    }
+    EV.raw=back;EV.orig=now;EV.cur=evClone(now);
+    if(bad.length)say(`書き込みましたが、読み直すと違っていた箇所があります: ${bad.join('、')}`,'err');
+    else{say(`${ds.length} 件を書き込み、読み直して一致を確認しました。練習画面にも反映しました。`,'ok');}
+    try{const text=JSON.stringify(back);if(loadKeymap(text,null,true)){store.set('imported',true);S.demo=false;$('#km').value=text;}}catch(e){}
+  }catch(e){
+    say('書き込めませんでした: '+((e&&e.message)||e)+'。途中まで書き込まれている可能性があるので、もう一度「キーボードから読み込む」で状態を確かめてください。','err');
+  }finally{if(d){try{await d.close();}catch(e){}}EV.busy=false;evRender();}
+}
+/* ---------- view switching + events ---------- */
+function showEditor(on){
+  EV.on=on;$('#editview').hidden=!on;$('#edlink').textContent=on?'← 練習に戻る':'キーマップ編集';
+  if(on){$('#onboard').hidden=true;$('#app').hidden=true;evRender();}
+  else{if(S.model){$('#app').hidden=false;$('#onboard').hidden=true;renderAll();}else showOnboard();}
+}
+$('#edlink').addEventListener('click',()=>showEditor(!EV.on));
+$('#ev-read').addEventListener('click',e=>{e.currentTarget.blur();evRead();});
+$('#ev-layers').addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(!b)return;EV.layer=+b.dataset.l;if(EV.pickT==='tap'||EV.pickT==='hold'||EV.pickT==='key')EV.pickT=EV.sel!=null?(EV.cur.keys[EV.layer][EV.sel]===HT_MARK?'tap':'key'):null;evRender();});
+$('#ev-kind').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b)evSetKind(b.dataset.k);});
+document.addEventListener('click',e=>{const b=e.target.closest('.ev-slot');if(!b)return;EV.pickT=b.dataset.slot;evRender();});
+$('#ev-term').addEventListener('change',e=>{const h=EV.cur.ht.get(evKey(EV.layer,EV.sel));if(h){h.term=Math.max(50,Math.min(1000,+e.target.value||200));evRender();}});
+$('#ev-cats').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;EV.cat=b.dataset.cat;EV.q='';$('#ev-q').value='';evRenderPicker();});
+$('#ev-q').addEventListener('input',e=>{EV.q=e.target.value;evRenderPicker();});
+$('#ev-keys').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(b)evSetVal(+b.dataset.v);});
+$('#ev-hex-go').addEventListener('click',()=>{const t=$('#ev-hex').value.trim();const v=parseInt(t,t.startsWith('0x')||/[a-f]/i.test(t)?16:10);if(isNaN(v)||v<0||v>0xFFFF){$('#ev-status').className='status err';$('#ev-status').textContent='キーコードは 0x0000〜0xFFFF で入力してください。';return;}evSetVal(v);});
+$('#ev-cblist').addEventListener('click',e=>{const b=e.target.closest('[data-cb]');if(!b)return;EV.cb=+b.dataset.cb;EV.pickT='ctap';EV.pickCombo=false;evRender();});
+$('#ev-cb-add').addEventListener('click',()=>{const i=EV.cur.combos.findIndex(c=>!c);if(i<0){$('#ev-status').className='status err';$('#ev-status').textContent='コンボは30個までです。';return;}EV.cur.combos[i]={term:200,layers:1<<Math.min(EV.layer,7),keys:[],tap:0,hold:0};EV.cb=i;EV.pickCombo=true;EV.pickT='ctap';evRender();});
+$('#ev-cb-pick').addEventListener('click',()=>{EV.pickCombo=!EV.pickCombo;evRender();});
+$('#ev-cb-layer').addEventListener('change',e=>{const c=EV.cur.combos[EV.cb];if(c){c.layers=+e.target.value;evRender();}});
+$('#ev-cb-term').addEventListener('change',e=>{const c=EV.cur.combos[EV.cb];if(c){c.term=Math.max(10,Math.min(1000,+e.target.value||200));evRender();}});
+$('#ev-cb-del').addEventListener('click',()=>{if(EV.cb==null)return;EV.cur.combos[EV.cb]=null;EV.cb=null;EV.pickT=null;EV.pickCombo=false;evRender();});
+$('#ev-revert').addEventListener('click',()=>{if(!evHas())return;EV.cur=evClone(EV.orig);EV.pickCombo=false;evRender();});
+$('#ev-list').addEventListener('click',e=>{const b=e.target.closest('[data-undo]');if(!b)return;const d=evDiffs()[+b.dataset.undo];if(!d)return;
+  if(d.t==='key'){EV.cur.keys[d.L][d.p]=d.from;const k=evKey(d.L,d.p);if(d.hf)EV.cur.ht.set(k,Object.assign({},d.hf));else EV.cur.ht.delete(k);}
+  else EV.cur.combos[d.i]=d.from?Object.assign({},d.from,{keys:d.from.keys.slice()}):null;evRender();});
+$('#ev-write').addEventListener('click',evWrite);
+$('#ev-json').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{evApplyJson(JSON.parse(String(r.result)));$('#ev-status').className='status ok';$('#ev-status').textContent=`${f.name} を当てはめました。変更点を確かめてから書き込んでください。`;}catch(err){$('#ev-status').className='status err';$('#ev-status').textContent=err.message;}evRender();};r.readAsText(f);e.target.value='';});
 
 $('#sharelink').href=SHARE_URL;
 (async function boot(){

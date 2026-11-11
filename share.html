@@ -680,7 +680,7 @@ function tapLabel(t){
   else base=NONCHAR[t.u]||t.u.replace(/^C_/,'');
   return (t.ctrl?(S.mod==='gui'?'Ctrl+':'^'):'')+(t.gui?'⌘':'')+(t.alt?'⌥':'')+base;
 }
-function lname(L){const l=S.model.layers[L];return l?l.name:'L'+L;}
+function lname(L){const l=S.model&&S.model.layers[L];return l?l.name:(L===0?'ベース':'L'+L);}
 function labelOf(k){
   if(!k)return{m:'',s:''};
   if(k.none)return{m:'·',s:''};
