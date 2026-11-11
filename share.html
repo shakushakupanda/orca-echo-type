@@ -371,7 +371,7 @@ function buildModel(km){
   const ids=km.layers.map(l=>l.id.toLowerCase());
   const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
   const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
-  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
   const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
   return {layers,combos,cond};
 }
@@ -400,7 +400,8 @@ function findChar(model,host,geo,c,R){
       else if(!t.s&&same(charOf(t.u,true,host),c)){const sh=findMod(model,L,'shift',[i,...reach],geo[i]&&geo[i].side,geo);if(sh>=0)consider({layer:L,target:[i],hold:reach.slice(),mods:[sh],cost:reach.length*10+25+L*0.1});}
     });
   });
-  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(same(charOf(t.u,t.s,host),c))consider({layer:0,target:cb.pos.slice(),hold:[],mods:[],cost:50,combo:true});}
+  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(!same(charOf(t.u,t.s,host),c))continue;
+    for(let L=0;L<model.layers.length;L++){if(cb.mask!=null&&!(cb.mask&(1<<L)))continue;if(cb.mask==null&&L>0)break;const reach=R[L];if(!reach)continue;consider({layer:L,target:cb.pos.slice(),hold:reach.slice(),mods:[],cost:50+reach.length*10,combo:true});}}
   return best;
 }
 function findShortcut(model,geo,R,item,mod){
@@ -498,7 +499,12 @@ function importLauncher(obj){
   layers=layers.slice(0,last+1);
   const nm=tri?['ベース','Fn1','Fn2','Fn3']:['ベース'];
   layers.forEach((l,i)=>{if(nm[i])l.name=nm[i];delete l.vals;});
-  return {defines:{},layers,combos:[],cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
+  const combos=[];
+  if(Array.isArray(obj.combos))for(const c of obj.combos){
+    const pos=(c.keys||[]).map(p=>matrix.findIndex(m=>m.row===Math.floor(p/14)&&m.col===p%14)).filter(i=>i>=0);
+    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),mask:c.layers==null?null:c.layers,term:c.term});
+  }
+  return {defines:{},layers,combos,cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
 }
 /* Orca echo physical layout, traced from Keychron Launcher (pixel centres, 82px = 1u). Matrix 4×14: left cols 0-6, right cols 7-13. */
 const OE_PX=82;

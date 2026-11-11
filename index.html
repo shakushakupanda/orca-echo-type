@@ -158,6 +158,11 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .macros .mc b{font-family:var(--f-mono);color:var(--mod);font-weight:600}
 .macros .mc span{color:var(--ink);overflow-wrap:anywhere}
 .macros .mc.unused{opacity:.55}
+.macros .cb{border-color:var(--hold);cursor:default}
+.macros .cb b{color:var(--hold)}
+.macros .cb.off{opacity:.5}
+.key.combo-hl .cap{stroke:var(--hold);stroke-width:2.6;fill:var(--hold-soft)}
+.key.combo-hl text{fill:var(--hold);opacity:1}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sw{width:14px;height:14px;border-radius:4px;border:2px solid}
 .editor{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px dashed var(--ink);border-radius:10px;padding:10px 12px;font-size:13px}
@@ -281,6 +286,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
       <span><i class="sw" style="background:var(--mod-soft);border-color:var(--mod)"></i>押しながら（Shift・Ctrlなど）</span>
       <span>Esc で1文字スキップ</span>
     </div>
+    <div class="macros" id="combos" hidden></div>
     <div class="macros" id="macros" hidden></div>
   </section>
 
@@ -421,7 +427,7 @@ function buildModel(km){
   const ids=km.layers.map(l=>l.id.toLowerCase());
   const lidx=p=>{if(p==null)return null;if(/^\d+$/.test(p))return +p;if(p in km.defines)return km.defines[p];let i=ids.indexOf(p.toLowerCase());if(i>=0)return i;i=km.layers.findIndex(l=>l.name.toLowerCase()===p.toLowerCase());return i>=0?i:null;};
   const layers=km.layers.map(l=>({id:l.id,name:l.name,keys:l.raw.map(r=>parseBinding(r,lidx))}));
-  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null}));
+  const combos=km.combos.map(c=>({pos:c.pos,key:c.raw?parseBinding(c.raw,lidx):null,mask:c.mask==null?null:c.mask,term:c.term}));
   const cond=km.cond.map(c=>({ifs:c.ifsRaw.split(/\s+/).map(lidx).filter(x=>x!=null),then:lidx(c.thenRaw.trim())}));
   return {layers,combos,cond};
 }
@@ -450,7 +456,8 @@ function findChar(model,host,geo,c,R){
       else if(!t.s&&same(charOf(t.u,true,host),c)){const sh=findMod(model,L,'shift',[i,...reach],geo[i]&&geo[i].side,geo);if(sh>=0)consider({layer:L,target:[i],hold:reach.slice(),mods:[sh],cost:reach.length*10+25+L*0.1});}
     });
   });
-  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(same(charOf(t.u,t.s,host),c))consider({layer:0,target:cb.pos.slice(),hold:[],mods:[],cost:50,combo:true});}
+  if(!best)for(const cb of model.combos){const t=cb.key&&cb.key.tap;if(!t||!t.ch||t.ctrl||t.alt||t.gui)continue;if(!same(charOf(t.u,t.s,host),c))continue;
+    for(let L=0;L<model.layers.length;L++){if(cb.mask!=null&&!(cb.mask&(1<<L)))continue;if(cb.mask==null&&L>0)break;const reach=R[L];if(!reach)continue;consider({layer:L,target:cb.pos.slice(),hold:reach.slice(),mods:[],cost:50+reach.length*10,combo:true});}}
   return best;
 }
 function findShortcut(model,geo,R,item,mod){
@@ -548,7 +555,12 @@ function importLauncher(obj){
   layers=layers.slice(0,last+1);
   const nm=tri?['ベース','Fn1','Fn2','Fn3']:['ベース'];
   layers.forEach((l,i)=>{if(nm[i])l.name=nm[i];delete l.vals;});
-  return {defines:{},layers,combos:[],cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
+  const combos=[];
+  if(Array.isArray(obj.combos))for(const c of obj.combos){
+    const pos=(c.keys||[]).map(p=>matrix.findIndex(m=>m.row===Math.floor(p/14)&&m.col===p%14)).filter(i=>i>=0);
+    if(pos.length<2)continue;combos.push({id:'combo_'+c.index,pos,raw:qmkToZmk(c.kc|0),mask:c.layers==null?null:c.layers,term:c.term});
+  }
+  return {defines:{},layers,combos,cond:tri&&layers.length>3?[{id:'tri_layer',ifsRaw:'1 2',thenRaw:'3'}]:[],matrix,src:'launcher'};
 }
 /* Orca echo physical layout, traced from Keychron Launcher (pixel centres, 82px = 1u). Matrix 4×14: left cols 0-6, right cols 7-13. */
 const OE_PX=82;
@@ -1036,7 +1048,7 @@ function renderAll(){
   const viewL=renderChips(g);
   updateKeyboard(viewL==null?0:viewL,S.view!=null&&g&&!g.missing&&S.view!==g.layer?Object.assign({},g,{target:[]}):g);
   if(S.view!=null&&g&&!g.missing&&S.view===g.layer)updateKeyboard(viewL,g);
-  renderStats();renderSrc();renderMacros();
+  renderStats();renderSrc();renderMacros();renderCombos(viewL==null?0:viewL);
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
   document.querySelectorAll('button[data-host]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.host===S.host));
   document.querySelectorAll('#modsel button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mod===S.mod));
@@ -1100,8 +1112,10 @@ async function readFromKeyboard(onp){
       if(a[3]===0)holdTaps.push({layer:L,row:r,col:c,tap:a[6]|(a[7]<<8),hold:a[8]|(a[9]<<8),term:a[10]|(a[11]<<8)});
       if(onp)onp('長押しキーを読み込み中…',0.7+(i+1)/cells.length*0.3);
     }
-    let macros=[];try{if(onp)onp('マクロを読み込み中…',0.99);macros=await readMacros(d);}catch(e){}
-    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps,macros};
+    let combos=[],macros=[];
+    try{if(onp)onp('コンボを読み込み中…',0.98);combos=await readCombos(d);}catch(e){}
+    try{if(onp)onp('マクロを読み込み中…',0.99);macros=await readMacros(d);}catch(e){}
+    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps,combos,macros};
   }finally{try{await d.close();}catch(e){}}
 }
 async function kbImport(statusEl,after){
@@ -1110,7 +1124,7 @@ async function kbImport(statusEl,after){
     say('一覧から Orca echo を選んでください…');
     const obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`));
     const text=JSON.stringify(obj);S.lastRead=obj;
-    if(loadKeymap(text,null,true)){$('#km-status').className='status ok';$('#km-status').textContent=`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個・マクロ${obj.macros.length}個）`;store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個・マクロ ${obj.macros.length} 個）`,'ok');if(after)after();}
+    if(loadKeymap(text,null,true)){$('#km-status').className='status ok';$('#km-status').textContent=`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個・コンボ${obj.combos.length}個）`;store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個・コンボ ${obj.combos.length} 個）`,'ok');if(after)after();}
   }catch(e){
     if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');
     else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。https://shakushakupanda.github.io/orca-echo-type/ を Chrome / Edge で開いてください。','err');
@@ -1164,6 +1178,19 @@ function macroText(mc){
   return out.join(' → ');
 }
 function macroShort(mc){const a=mc.actions;if(a.length===1&&a[0].t==='text')return a[0].s.slice(0,4);const t=macroText(mc);return t.length<=5?t:'M'+mc.index;}
+function renderCombos(viewL){
+  const box=$('#combos');if(!box)return;const m=S.model;
+  const list=m&&m.combos&&S.km&&S.km.src==='launcher'?m.combos:[];
+  if(!list.length){box.hidden=true;box.innerHTML='';return;}
+  box.hidden=false;
+  const keyName=i=>{const k=effKey(m,viewL,i)||effKey(m,0,i);return k?labelOf(k).m||'?':'?';};
+  box.innerHTML='<span class="muted small" style="align-self:center">コンボ</span>'+list.map((cb,ci)=>{
+    const on=cb.mask==null?viewL===0:!!(cb.mask&(1<<viewL));
+    const ls=cb.mask==null?'':[...Array(8).keys()].filter(L=>cb.mask&(1<<L)).map(lname).join('・');
+    const out=cb.key?labelOf(cb.key).m:'?';
+    return `<span class="mc cb${on?'':' off'}" data-ci="${ci}" title="${esc((ls?ls+' で有効':'')+(cb.term?` · 判定 ${cb.term}ms`:''))}"><b>${esc(cb.pos.map(keyName).join(' + '))}</b><span>→ ${esc(out)}${on?'':'（'+esc(ls)+'）'}</span></span>`;}).join('');
+}
+function hlCombo(ci){S.keyEls.forEach(el=>el.g.classList.remove('combo-hl'));if(ci==null)return;const cb=S.model.combos[ci];if(!cb)return;for(const i of cb.pos){const el=S.keyEls[i];if(el)el.g.classList.add('combo-hl');}}
 function renderMacros(){
   const box=$('#macros');if(!box)return;const used=new Set();
   if(S.model)S.model.layers.forEach(l=>l.keys.forEach(k=>{if(k&&k.beh==='macro')used.add(+k.params[0]);}));
@@ -1171,6 +1198,16 @@ function renderMacros(){
   if(!ms.length){box.hidden=true;box.innerHTML='';return;}
   box.hidden=false;
   box.innerHTML='<span class="muted small" style="align-self:center">マクロ</span>'+ms.map(mc=>`<span class="mc${used.has(mc.index)?'':' unused'}" title="${used.has(mc.index)?'':'どのキーにも割り当てられていません'}"><b>M${mc.index}</b><span>${esc(macroText(mc))}</span></span>`).join('');
+}
+async function readCombos(d){
+  const out=[];
+  for(let i=0;i<30;i++){
+    const a=await hidCmd(d,[0xa7,0x20,0x0a,i],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x0a);
+    if(a[3]!==0)continue;
+    const keys=[a[7],a[8],a[9],a[10]].filter(x=>x!==0xff);
+    out.push({index:i,term:a[4]|(a[5]<<8),layers:a[6],keys,kc:a[11]|(a[12]<<8)});
+  }
+  return out;
 }
 async function readMacros(d){
   const count=(await hidCmd(d,[0x0C],a=>a[0]===0x0C))[1];
@@ -1241,6 +1278,8 @@ document.addEventListener('keyup',e=>{
   const ch=S.emu.up(e);if(ch!=null)typeChar(ch);
 });
 window.addEventListener('blur',()=>{if(S.emu)S.emu.reset();});
+$('#combos').addEventListener('mouseover',e=>{const el=e.target.closest('[data-ci]');hlCombo(el?+el.dataset.ci:null);});
+$('#combos').addEventListener('mouseleave',()=>hlCombo(null));
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.mode=b.dataset.mode;store.set('mode',S.mode);S.view=null;S.started=false;b.blur();newItem();});
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const l=b.dataset.l;S.view=l==='auto'?null:(S.view===+l?null:+l);b.blur();renderAll();});
 for(const id of ['#host','#host2'])$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-host]');if(!b)return;S.host=b.dataset.host;store.set('host',S.host);b.blur();renderAll();});
