@@ -128,6 +128,7 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .key{cursor:default}
 .key .cap{fill:var(--key);stroke:var(--key-edge);stroke-width:1;filter:drop-shadow(0 2px 0 rgba(0,0,0,.55))}
 .key.thumb .cap{fill:var(--key-thumb)}
+.key.macro .cap{stroke:var(--mod);stroke-dasharray:3 2}
 .key.aux .cap{stroke-dasharray:4 3;fill:transparent}
 .body{fill:var(--body);stroke:var(--body-edge);stroke-width:3}
 .ball{fill:#5A5A5E;stroke:#26262A;stroke-width:6}
@@ -152,6 +153,11 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .editing .key{cursor:pointer}
 .key.sel .cap{stroke:var(--ink);stroke-width:2.6;stroke-dasharray:4 3}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--muted);justify-content:center}
+.macros{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;font-size:12px}
+.macros .mc{display:inline-flex;gap:8px;align-items:baseline;border:1px dashed var(--mod);border-radius:8px;padding:3px 10px;background:var(--surface);max-width:100%;min-width:0}
+.macros .mc b{font-family:var(--f-mono);color:var(--mod);font-weight:600}
+.macros .mc span{color:var(--ink);overflow-wrap:anywhere}
+.macros .mc.unused{opacity:.55}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sw{width:14px;height:14px;border-radius:4px;border:2px solid}
 .editor{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px dashed var(--ink);border-radius:10px;padding:10px 12px;font-size:13px}
@@ -275,6 +281,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
       <span><i class="sw" style="background:var(--mod-soft);border-color:var(--mod)"></i>押しながら（Shift・Ctrlなど）</span>
       <span>Esc で1文字スキップ</span>
     </div>
+    <div class="macros" id="macros" hidden></div>
   </section>
 
   <section class="stats">
@@ -789,6 +796,7 @@ function loadKeymap(text,msg,fresh,noSave){
     if(fresh&&!noSave){S.ovr={};store.set('ovr',{});}
     if(km.src==='launcher'&&!noSave)for(const key in S.ovr){const [L,i]=key.split(':').map(Number);if(km.layers[L]&&i<km.layers[L].raw.length)km.layers[L].raw[i]=S.ovr[key];}
     const model=buildModel(km);
+    S.macros=[];if(isJson){try{const o=JSON.parse(text);if(Array.isArray(o.macros))S.macros=o.macros;}catch(e){}}
     S.km=km;S.model=model;S.text=text;if(!noSave){store.set('keymap',text);S.shared=null;}
     const n=Math.max(...km.layers.map(l=>l.raw.length));
     S.geo=km.matrix?launcherGeometry(km.matrix):geometry(n);
@@ -838,7 +846,7 @@ function labelOf(k){
     case 'mkp':return{m:{LCLK:'Click',RCLK:'R-Clk',MCLK:'M-Clk'}[k.params[0]]||'Mouse',s:''};
     case 'msc':return{m:'Scroll',s:(k.params[0]||'').toLowerCase()};
     case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
-    case 'macro':return{m:'M'+(k.params[0]||''),s:'macro'};
+    case 'macro':{const n=+k.params[0];const mc=macroOf(n);return{m:mc?macroShort(mc):'M'+n,s:mc?'M'+n:'macro'};}
     case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
     case 'ht':return{m:'H/T',s:'中身不明'};
     case 'qmk':return{m:'?',s:(k.params[0]||'')};
@@ -866,10 +874,10 @@ function buildKeyboard(){
     grp.setAttribute('class','key'+(p.thumb?' thumb':''));
     grp.setAttribute('transform',`translate(${(p.x*U).toFixed(1)} ${(p.y*U).toFixed(1)}) rotate(${p.rot||0})`);
     const w=KW/2,H=KW*(p.h||1)+(p.h>1?(p.h-1)*0:0),hh=H/2;
-    grp.innerHTML=`<rect class="sonar" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><rect class="cap" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><text class="m" y="5"></text><text class="s" y="19"></text>`;
+    grp.innerHTML=`<rect class="sonar" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><rect class="cap" x="${-w}" y="${-hh}" width="${KW}" height="${H}" rx="9"/><text class="m" y="5"></text><text class="s" y="19"></text><title></title>`;
     grp.addEventListener('click',()=>onKeyClick(i));
     svg.appendChild(grp);
-    S.keyEls.push({g:grp,m:grp.querySelector('.m'),s:grp.querySelector('.s')});
+    S.keyEls.push({g:grp,m:grp.querySelector('.m'),s:grp.querySelector('.s'),t:grp.querySelector('title')});
   });
 }
 function updateKeyboard(viewL,guide){
@@ -881,10 +889,12 @@ function updateKeyboard(viewL,guide){
     const trans=!!(k&&k.trans&&viewL>0);
     const lab=labelOf(trans?m.layers[0].keys[i]:k);
     el.m.textContent=lab.m;el.s.textContent=trans?'':lab.s;
+    {const kk=trans?m.layers[0].keys[i]:k;const mc=kk&&kk.beh==='macro'?macroOf(+kk.params[0]):null;if(el.t)el.t.textContent=mc?`マクロ M${kk.params[0]}: ${macroText(mc)}`:'';}
     const len=[...lab.m].length;el.m.setAttribute('font-size',len<=1?18:len<=2?15:len<=4?12:10);
     el.m.setAttribute('y',lab.s&&!trans?1:5);
     let c='key'+(S.geo[i]&&S.geo[i].thumb?' thumb':'')+(S.geo[i]&&S.geo[i].aux?' aux':'');
     if(trans)c+=' trans';if(k&&k.none)c+=' none';
+    {const kk=trans?m.layers[0].keys[i]:k;if(kk&&kk.beh==='macro'&&macroOf(+kk.params[0]))c+=' macro';}
     if(tgt.has(i))c+=' is-target';else if(hold.has(i))c+=' is-hold';else if(mods.has(i))c+=' is-mod';
     if(S.edit&&S.editPos===i)c+=' sel';
     el.g.setAttribute('class',c);
@@ -1026,7 +1036,7 @@ function renderAll(){
   const viewL=renderChips(g);
   updateKeyboard(viewL==null?0:viewL,S.view!=null&&g&&!g.missing&&S.view!==g.layer?Object.assign({},g,{target:[]}):g);
   if(S.view!=null&&g&&!g.missing&&S.view===g.layer)updateKeyboard(viewL,g);
-  renderStats();renderSrc();
+  renderStats();renderSrc();renderMacros();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
   document.querySelectorAll('button[data-host]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.host===S.host));
   document.querySelectorAll('#modsel button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mod===S.mod));
@@ -1090,7 +1100,8 @@ async function readFromKeyboard(onp){
       if(a[3]===0)holdTaps.push({layer:L,row:r,col:c,tap:a[6]|(a[7]<<8),hold:a[8]|(a[9]<<8),term:a[10]|(a[11]<<8)});
       if(onp)onp('長押しキーを読み込み中…',0.7+(i+1)/cells.length*0.3);
     }
-    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps};
+    let macros=[];try{if(onp)onp('マクロを読み込み中…',0.99);macros=await readMacros(d);}catch(e){}
+    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps,macros};
   }finally{try{await d.close();}catch(e){}}
 }
 async function kbImport(statusEl,after){
@@ -1099,7 +1110,7 @@ async function kbImport(statusEl,after){
     say('一覧から Orca echo を選んでください…');
     const obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`));
     const text=JSON.stringify(obj);S.lastRead=obj;
-    if(loadKeymap(text,null,true)){$('#km-status').className='status ok';$('#km-status').textContent=`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個）`;store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個）`,'ok');if(after)after();}
+    if(loadKeymap(text,null,true)){$('#km-status').className='status ok';$('#km-status').textContent=`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個・マクロ${obj.macros.length}個）`;store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個・マクロ ${obj.macros.length} 個）`,'ok');if(after)after();}
   }catch(e){
     if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');
     else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。https://shakushakupanda.github.io/orca-echo-type/ を Chrome / Edge で開いてください。','err');
@@ -1111,6 +1122,67 @@ function saveJson(obj){
   try{const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     const d=new Date(obj.readAt||Date.now());a.download=`Keymap-Orca_echo-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}${String(d.getMinutes()).padStart(2,'0')}-holdtap.json`;
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return true;}catch(e){return false;}
+}
+
+/* macros: VIA dynamic macro buffer (0x0C count, 0x0D size, 0x0E read). Macros are NUL-separated;
+   0x01 prefix + 0x01 tap / 0x02 down / 0x03 up + 1-byte keycode, 0x04 delay "123|",
+   0x05/0x06/0x07 tap/down/up + 2-byte keycode (little endian); other bytes are typed as text. */
+function parseMacroBuffer(buf,count){
+  const out=[];let i=0;
+  for(let n=0;n<count&&i<buf.length;n++){
+    const acts=[];let text='';const flush=()=>{if(text){acts.push({t:'text',s:text});text='';}};
+    while(i<buf.length&&buf[i]!==0){
+      const b=buf[i];
+      if(b===1&&i+1<buf.length){
+        const op=buf[i+1];
+        if(op>=1&&op<=3){flush();acts.push({t:['','tap','down','up'][op],kc:buf[i+2]});i+=3;continue;}
+        if(op===4){flush();let j=i+2,d='';while(j<buf.length&&buf[j]!==0x7C&&buf[j]!==0){d+=String.fromCharCode(buf[j]);j++;}acts.push({t:'delay',ms:parseInt(d,10)||0});i=j+1;continue;}
+        if(op>=5&&op<=7){flush();acts.push({t:['','','','','','tap','down','up'][op],kc:buf[i+2]|(buf[i+3]<<8)});i+=4;continue;}
+      }
+      text+=String.fromCharCode(b);i++;
+    }
+    flush();i++;
+    if(acts.length)out.push({index:n,actions:acts});
+  }
+  return out;
+}
+function macroOf(n){return (S.macros||[]).find(m=>m.index===n)||null;}
+function mcKey(kc){const z=qmkToZmk(kc);if(z.startsWith('&kp '))return tapLabel(resolveKey(z.slice(4)));return z.replace('&','');}
+function macroText(mc){
+  const a=mc.actions,out=[];
+  for(let i=0;i<a.length;i++){
+    const x=a[i];
+    if(x.t==='text'){out.push('「'+x.s+'」');continue;}
+    if(x.t==='delay'){out.push(x.ms+'ms待つ');continue;}
+    if(x.t==='down'){const held=[];let j=i;while(j<a.length&&a[j].t==='down'){held.push(a[j].kc);j++;}
+      const taps=[];while(j<a.length&&a[j].t==='tap'){taps.push(a[j].kc);j++;}
+      if(taps.length){out.push(held.map(mcKey).join('+')+'+'+taps.map(mcKey).join(','));let k=j;while(k<a.length&&a[k].t==='up'&&held.includes(a[k].kc))k++;i=k-1;continue;}
+      out.push(mcKey(x.kc)+'↓');continue;}
+    if(x.t==='up'){out.push(mcKey(x.kc)+'↑');continue;}
+    out.push(mcKey(x.kc));
+  }
+  return out.join(' → ');
+}
+function macroShort(mc){const a=mc.actions;if(a.length===1&&a[0].t==='text')return a[0].s.slice(0,4);const t=macroText(mc);return t.length<=5?t:'M'+mc.index;}
+function renderMacros(){
+  const box=$('#macros');if(!box)return;const used=new Set();
+  if(S.model)S.model.layers.forEach(l=>l.keys.forEach(k=>{if(k&&k.beh==='macro')used.add(+k.params[0]);}));
+  const ms=(S.macros||[]);
+  if(!ms.length){box.hidden=true;box.innerHTML='';return;}
+  box.hidden=false;
+  box.innerHTML='<span class="muted small" style="align-self:center">マクロ</span>'+ms.map(mc=>`<span class="mc${used.has(mc.index)?'':' unused'}" title="${used.has(mc.index)?'':'どのキーにも割り当てられていません'}"><b>M${mc.index}</b><span>${esc(macroText(mc))}</span></span>`).join('');
+}
+async function readMacros(d){
+  const count=(await hidCmd(d,[0x0C],a=>a[0]===0x0C))[1];
+  const sz=await hidCmd(d,[0x0D],a=>a[0]===0x0D);const size=(sz[1]<<8)|sz[2];
+  if(!count||!size)return [];
+  const buf=[];let nul=0;
+  for(let off=0;off<size&&nul<count;off+=28){
+    const n=Math.min(28,size-off);
+    const r=await hidCmd(d,[0x0E,off>>8,off&255,n],a=>a[0]===0x0E&&a[1]===(off>>8)&&a[2]===(off&255));
+    for(let k=0;k<n;k++){buf.push(r[4+k]);if(r[4+k]===0)nul++;}
+  }
+  return parseMacroBuffer(buf,count);
 }
 
 /* onboarding */
