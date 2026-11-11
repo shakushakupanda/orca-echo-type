@@ -466,10 +466,29 @@ function qmkToZmk(v){
   if(v>=0x7700&&v<=0x777F)return '&macro '+(v-0x7700);
   if(v===0x7E07)return '&kp LALT';
   if(v===0x7E09)return '&kp LGUI';
+  if(v===0x7E1A)return '&ht';
   if(v>=0x7E00&&v<=0x7E3F)return '&kb '+hex(v);
   return '&qmk '+hex(v);
 }
+/* Keychron stores hold-taps as the marker 0x7E1A in the keymap; the real tap/hold live on the keyboard
+   (read with a7 20 08 <layer> <row> <col>). Our reader adds them as obj.holdTaps. Fold them back into
+   QMK Layer-Tap / Mod-Tap codes so the rest of the code understands them. */
+const HT_MARK=0x7E1A;
+const HMOD={0xE0:0x01,0xE1:0x02,0xE2:0x04,0xE3:0x08,0xE4:0x11,0xE5:0x12,0xE6:0x14,0xE7:0x18};
+function htToCode(t,h){
+  if(t>0xFF)return t;
+  if(h>=0x5220&&h<=0x522F)return 0x4000|((h&0xF)<<8)|t;
+  if(HMOD[h]!=null)return 0x2000|(HMOD[h]<<8)|t;
+  return t;
+}
+function applyHoldTaps(obj){
+  if(!obj||!Array.isArray(obj.holdTaps)||!obj.holdTaps.length||!Array.isArray(obj.keymap))return obj;
+  const km=obj.keymap.map(l=>l.map(e=>Object.assign({},e)));
+  for(const h of obj.holdTaps){const l=km[h.layer];if(!l)continue;const e=l.find(x=>x.row===h.row&&x.col===h.col);if(e&&e.val===HT_MARK)e.val=htToCode(h.tap|0,h.hold|0);}
+  return Object.assign({},obj,{keymap:km});
+}
 function importLauncher(obj){
+  obj=applyHoldTaps(obj);
   if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の JSON に keymap 配列が見つかりませんでした。');
   const maps=obj.keymap.map(l=>new Map(l.map(e=>[e.row+','+e.col,e.val|0])));
   const matrix=obj.keymap[0].map(e=>({row:e.row,col:e.col})).filter(p=>maps.some(m=>(m.get(p.row+','+p.col)||0)!==0));
@@ -506,6 +525,7 @@ function launcherGeometry(matrix){
 /* compact form used by the shared keymap database: layers of 56 values (4 rows × 14 cols) */
 function toLauncher(layers){return {keymap:layers.map(l=>l.map((v,i)=>({row:Math.floor(i/14),col:i%14,val:v|0})))};}
 function fromLauncherObj(obj){
+  obj=applyHoldTaps(obj);
   if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の書き出しファイルではないようです。');
   let big=false;
   const maps=obj.keymap.map(l=>{const a=new Array(56).fill(0);for(const e of l){if(e.row>3||e.col>13){if(e.val)big=true;continue;}a[e.row*14+e.col]=e.val|0;}return a;});
@@ -672,6 +692,7 @@ function labelOf(k){
     case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
     case 'macro':return{m:'M'+(k.params[0]||''),s:'macro'};
     case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'ht':return{m:'H/T',s:'中身不明'};
     case 'qmk':return{m:'?',s:(k.params[0]||'')};
     default:return{m:k.beh,s:''};
   }

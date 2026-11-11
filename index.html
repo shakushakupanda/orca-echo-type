@@ -74,6 +74,8 @@ h1{font-family:var(--f-display);font-weight:600;font-size:clamp(19px,2.6vw,22px)
 .linkbtn{font:inherit;font-size:13px;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
 .linkbtn:hover{color:var(--ink)}
 .ob-links{display:flex;gap:16px}
+.ob-kb{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding-top:14px;border-top:1px solid var(--line)}
+.ob-kb .ob-note{max-width:62ch}
 @media (max-width:720px){.onboard{grid-template-columns:1fr}}
 .banner{border:1px solid var(--mod);background:var(--mod-soft);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px}
 .prompt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px clamp(14px,2.5vw,24px) 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -199,6 +201,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
       <span class="drop-sub">またはここにドラッグ／貼り付け</span>
       <input type="file" id="ob-file" accept=".json,.keymap,.dtsi,.txt" hidden>
     </label>
+    <div class="ob-kb"><button class="btn pri" id="ob-kb">キーボードから読み込む</button><span class="ob-note">USB でつないだ Orca echo から、長押しキーの中身も含めて読み取ります（Chrome / Edge）。読むだけで、キーボードの設定は変えません。</span></div>
     <div class="ob-foot"><span class="status" id="ob-status"></span><span class="ob-links"><button class="linkbtn" id="ob-back" hidden>練習に戻る</button><button class="linkbtn" id="ob-demo">サンプル配列で試す</button></span></div>
   </section>
 
@@ -265,6 +268,8 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
         <div class="row">
           <button class="btn pri" id="km-load">読み込む</button>
           <label class="btn file">ファイルを選ぶ<input type="file" id="km-file" accept=".json,.keymap,.dtsi,.txt" hidden></label>
+          <button class="btn" id="km-kb">キーボードから読み込む</button>
+          <button class="btn" id="km-save" hidden>長押し込みの JSON を保存</button>
           <button class="btn" id="km-sample">サンプル配列にする</button>
           <button class="btn" id="km-edit">キーを直接編集</button>
         </div>
@@ -477,10 +482,29 @@ function qmkToZmk(v){
   if(v>=0x7700&&v<=0x777F)return '&macro '+(v-0x7700);
   if(v===0x7E07)return '&kp LALT';
   if(v===0x7E09)return '&kp LGUI';
+  if(v===0x7E1A)return '&ht';
   if(v>=0x7E00&&v<=0x7E3F)return '&kb '+hex(v);
   return '&qmk '+hex(v);
 }
+/* Keychron stores hold-taps as the marker 0x7E1A in the keymap; the real tap/hold live on the keyboard
+   (read with a7 20 08 <layer> <row> <col>). Our reader adds them as obj.holdTaps. Fold them back into
+   QMK Layer-Tap / Mod-Tap codes so the rest of the code understands them. */
+const HT_MARK=0x7E1A;
+const HMOD={0xE0:0x01,0xE1:0x02,0xE2:0x04,0xE3:0x08,0xE4:0x11,0xE5:0x12,0xE6:0x14,0xE7:0x18};
+function htToCode(t,h){
+  if(t>0xFF)return t;
+  if(h>=0x5220&&h<=0x522F)return 0x4000|((h&0xF)<<8)|t;
+  if(HMOD[h]!=null)return 0x2000|(HMOD[h]<<8)|t;
+  return t;
+}
+function applyHoldTaps(obj){
+  if(!obj||!Array.isArray(obj.holdTaps)||!obj.holdTaps.length||!Array.isArray(obj.keymap))return obj;
+  const km=obj.keymap.map(l=>l.map(e=>Object.assign({},e)));
+  for(const h of obj.holdTaps){const l=km[h.layer];if(!l)continue;const e=l.find(x=>x.row===h.row&&x.col===h.col);if(e&&e.val===HT_MARK)e.val=htToCode(h.tap|0,h.hold|0);}
+  return Object.assign({},obj,{keymap:km});
+}
 function importLauncher(obj){
+  obj=applyHoldTaps(obj);
   if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の JSON に keymap 配列が見つかりませんでした。');
   const maps=obj.keymap.map(l=>new Map(l.map(e=>[e.row+','+e.col,e.val|0])));
   const matrix=obj.keymap[0].map(e=>({row:e.row,col:e.col})).filter(p=>maps.some(m=>(m.get(p.row+','+p.col)||0)!==0));
@@ -517,6 +541,7 @@ function launcherGeometry(matrix){
 /* compact form used by the shared keymap database: layers of 56 values (4 rows × 14 cols) */
 function toLauncher(layers){return {keymap:layers.map(l=>l.map((v,i)=>({row:Math.floor(i/14),col:i%14,val:v|0})))};}
 function fromLauncherObj(obj){
+  obj=applyHoldTaps(obj);
   if(!obj||!Array.isArray(obj.keymap)||!obj.keymap.length||!Array.isArray(obj.keymap[0]))throw new Error('Launcher の書き出しファイルではないようです。');
   let big=false;
   const maps=obj.keymap.map(l=>{const a=new Array(56).fill(0);for(const e of l){if(e.row>3||e.col>13){if(e.val)big=true;continue;}a[e.row*14+e.col]=e.val|0;}return a;});
@@ -739,7 +764,8 @@ function loadKeymap(text,msg,fresh,noSave){
     const model=buildModel(km);
     S.km=km;S.model=model;S.text=text;if(!noSave){store.set('keymap',text);S.shared=null;}
     const n=Math.max(...km.layers.map(l=>l.raw.length));
-    S.geo=km.matrix?launcherGeometry(km.matrix):geometry(n);S.R=reachPaths(model);S.view=null;S.editPos=null;
+    S.geo=km.matrix?launcherGeometry(km.matrix):geometry(n);
+    {const ks=document.getElementById('km-save');if(ks&&!noSave)ks.hidden=!/"holdTaps"/.test(text);}S.R=reachPaths(model);S.view=null;S.editPos=null;
     buildKeyboard();
     const st=$('#km-status');st.className='status ok';
     st.textContent=msg||(km.src==='launcher'?'Keychron Launcher の':'ZMK の')+`キーマップを読み込みました（${km.layers.length}レイヤー・${n}キー：${km.layers.map(l=>l.name).join('・')}）`+(km.combos.length?`、コンボ${km.combos.length}件`:'')+(km.cond.length?'、tri-layer あり':'');
@@ -787,6 +813,7 @@ function labelOf(k){
     case 'mmv':return{m:'Move',s:(k.params[0]||'').toLowerCase()};
     case 'macro':return{m:'M'+(k.params[0]||''),s:'macro'};
     case 'kb':return{m:(k.params[0]||'').replace('0x',''),s:'特殊'};
+    case 'ht':return{m:'H/T',s:'中身不明'};
     case 'qmk':return{m:'?',s:(k.params[0]||'')};
     default:return{m:k.beh,s:''};
   }
@@ -1000,6 +1027,65 @@ function setupEmu(){
 }
 const emuActive=()=>!!(S.shared&&S.emu&&S.emuOn);
 
+/* read the keymap and hold-taps straight from the keyboard (VIA protocol over WebHID, read-only) */
+const OE_ROWS=4,OE_COLS=14;
+function hidCmd(d,bytes,match,timeout){
+  return new Promise((res,rej)=>{
+    let done=false;
+    const h=e=>{const a=new Uint8Array(e.data.buffer,e.data.byteOffset,e.data.byteLength);if(!match(a))return;done=true;clearTimeout(t);d.removeEventListener('inputreport',h);res(a.slice());};
+    const t=setTimeout(()=>{if(done)return;d.removeEventListener('inputreport',h);rej(new Error('キーボードから応答がありません'));},timeout||1500);
+    d.addEventListener('inputreport',h);
+    const b=new Uint8Array(32);b.set(bytes);
+    d.sendReport(0,b).catch(err=>{clearTimeout(t);d.removeEventListener('inputreport',h);rej(err);});
+  });
+}
+async function readFromKeyboard(onp){
+  if(!('hid' in navigator))throw Object.assign(new Error('このブラウザは USB 接続に対応していません。Chrome か Edge で開いてください。'),{code:'nohid'});
+  const devs=await navigator.hid.requestDevice({filters:[{usagePage:0xFF60,usage:0x61}]});
+  const d=devs[0];if(!d)throw Object.assign(new Error('接続をキャンセルしました。'),{code:'cancel'});
+  if(!/orca/i.test(d.productName||''))throw new Error((d.productName||'このキーボード')+' は Orca echo ではないようです。');
+  if(!d.opened)await d.open();
+  try{
+    const lc=(await hidCmd(d,[0x11],a=>a[0]===0x11))[1];
+    if(!lc||lc>16)throw new Error('レイヤー数を読み取れませんでした。');
+    const per=OE_ROWS*OE_COLS*2,total=lc*per,buf=new Uint8Array(total);
+    for(let off=0;off<total;off+=28){
+      const size=Math.min(28,total-off);
+      const r=await hidCmd(d,[0x12,off>>8,off&255,size],a=>a[0]===0x12&&a[1]===(off>>8)&&a[2]===(off&255));
+      buf.set(r.slice(4,4+size),off);if(onp)onp('キーマップを読み込み中…',(off+size)/total*0.7);
+    }
+    const keymap=[],cells=[];
+    for(let L=0;L<lc;L++){const arr=[];for(let r=0;r<OE_ROWS;r++)for(let c=0;c<OE_COLS;c++){const o=L*per+(r*OE_COLS+c)*2;const val=(buf[o]<<8)|buf[o+1];arr.push({col:c,row:r,val});if(val===HT_MARK)cells.push({L,r,c});}keymap.push(arr);}
+    const holdTaps=[];
+    for(let i=0;i<cells.length;i++){
+      const {L,r,c}=cells[i];
+      const a=await hidCmd(d,[0xa7,0x20,0x08,L,r,c],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x08&&a[4]===r&&a[5]===c);
+      if(a[3]===0)holdTaps.push({layer:L,row:r,col:c,tap:a[6]|(a[7]<<8),hold:a[8]|(a[9]<<8),term:a[10]|(a[11]<<8)});
+      if(onp)onp('長押しキーを読み込み中…',0.7+(i+1)/cells.length*0.3);
+    }
+    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps};
+  }finally{try{await d.close();}catch(e){}}
+}
+async function kbImport(statusEl,after){
+  const say=(t,c)=>{statusEl.className='status'+(c?' '+c:'');statusEl.textContent=t;};
+  try{
+    say('一覧から Orca echo を選んでください…');
+    const obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`));
+    const text=JSON.stringify(obj);S.lastRead=obj;
+    if(loadKeymap(text,`キーボードから読み込みました（${S.km.layers.length}レイヤー・長押しキー${obj.holdTaps.length}個）`,true)){store.set('imported',true);S.demo=false;$('#km').value=text;say(`読み込みました（長押しキー ${obj.holdTaps.length} 個）`,'ok');if(after)after();}
+  }catch(e){
+    if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');
+    else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。https://shakushakupanda.github.io/orca-echo-type/ を Chrome / Edge で開いてください。','err');
+    else if(e&&e.name==='NotAllowedError'||/open/i.test(e&&e.message||''))say('キーボードを開けませんでした。Keychron Launcher を開いているタブを閉じてから、もう一度試してください。','err');
+    else say((e&&e.message)||'読み込めませんでした。','err');
+  }
+}
+function saveJson(obj){
+  try{const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    const d=new Date(obj.readAt||Date.now());a.download=`Keymap-Orca_echo-${d.getMonth()+1}-${d.getDate()}-${d.getHours()}${String(d.getMinutes()).padStart(2,'0')}-holdtap.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return true;}catch(e){return false;}
+}
+
 /* onboarding */
 function showOnboard(){$('#ob-back').hidden=!S.model||$('#app').hidden;S.onboard=true;$('#onboard').hidden=false;$('#app').hidden=true;$('#ob-status').textContent='';$('#ob-status').className='status';}
 function showApp(){S.onboard=false;$('#onboard').hidden=true;$('#app').hidden=false;S.started=false;newItem();}
@@ -1073,6 +1159,9 @@ drop.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0]
 document.addEventListener('paste',e=>{if(!S.onboard)return;const t=e.clipboardData&&e.clipboardData.getData('text');if(t&&t.trim()){e.preventDefault();importText(t);}});
 $('#ob-demo').addEventListener('click',()=>{if(loadKeymap(DEFAULT_KM,'サンプル配列を読み込みました。',true)){S.demo=true;showApp();}});
 $('#km-load').addEventListener('click',e=>{e.currentTarget.blur();if(loadKeymap($('#km').value,null,true)){store.set('imported',true);S.demo=false;}});
+$('#ob-kb').addEventListener('click',e=>{e.currentTarget.blur();kbImport($('#ob-status'),()=>{showApp();$('#km-save').hidden=false;});});
+$('#km-kb').addEventListener('click',e=>{e.currentTarget.blur();kbImport($('#km-status'),()=>{$('#km-save').hidden=false;});});
+$('#km-save').addEventListener('click',e=>{e.currentTarget.blur();const t=store.get('keymap',null);let o=S.lastRead;if(!o&&t){try{o=JSON.parse(t);}catch(err){}}if(!o||!saveJson(o)){$('#km-status').className='status err';$('#km-status').textContent='保存できませんでした。';}});
 $('#km-sample').addEventListener('click',e=>{e.currentTarget.blur();if(loadKeymap(DEFAULT_KM,'サンプル配列を読み込みました。',true))S.demo=true;});
 $('#km-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#km').value=r.result;if(loadKeymap(r.result,null,true)){store.set('imported',true);S.demo=false;}};r.readAsText(f);e.target.value='';});
 $('#km-edit').addEventListener('click',e=>{S.edit=!S.edit;e.currentTarget.blur();if(!S.edit){$('#editor').hidden=true;S.editPos=null;}else{$('#ed-where').textContent='編集したいキーをクリックしてください（レイヤーは上のボタンで切替）';$('#editor').hidden=false;}renderAll();});
