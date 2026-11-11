@@ -290,22 +290,6 @@ body.ev-wide .wrap{max-width:1360px}
       </button>
       <p class="ob-note">Chrome / Edge で使えます。読むだけで、キーボードの設定は変えません。Keychron Launcher を開いている場合は閉じてから押してください。</p>
     </div>
-    <details class="ob-alt">
-      <summary>Launcher で書き出した JSON から読み込む</summary>
-      <div class="ob-alt-body">
-        <ol class="ob-steps">
-          <li>Keychron Launcher で Orca echo のキーマップを開く</li>
-          <li>キーマップを書き出す（エクスポート）と <code>Keymap-Orca_echo-….json</code> が保存されます</li>
-          <li>そのファイルを右の枠に選ぶか、ドラッグして入れる（長押しキーの中身は入りません）</li>
-        </ol>
-        <label class="drop" id="drop" for="ob-file">
-          <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="6"/><path d="M24 31V18m0 0-5 5m5-5 5 5"/></svg>
-          <span class="drop-main">JSON ファイルを選ぶ</span>
-          <span class="drop-sub">またはここにドラッグ／貼り付け</span>
-          <input type="file" id="ob-file" accept=".json,.keymap,.dtsi,.txt" hidden>
-        </label>
-      </div>
-    </details>
     <div class="ob-foot"><span class="status" id="ob-status"></span><span class="ob-links"><button class="linkbtn" id="ob-back" hidden>練習に戻る</button><button class="linkbtn" id="ob-demo">サンプル配列で試す</button></span></div>
   </section>
 
@@ -369,12 +353,10 @@ body.ev-wide .wrap{max-width:1360px}
     <div class="set">
       <div>
         <h3>キーマップ</h3>
-        <p>Keychron Launcher で書き出した <code>Keymap-Orca_echo-….json</code> を選ぶか、中身を貼って読み込みます。tri-layer（Lower＋Upper で Adjust）、Mod-Tap、Layer-Tap も解釈します。</p>
-        <textarea id="km" spellcheck="false" aria-label="キーマップ（Launcher JSON または ZMK keymap）"></textarea>
+        <p>USB でつないだ Orca echo から、キーマップ・長押しキー・コンボ・マクロを読み込みます（Chrome / Edge）。</p>
+        <textarea id="km" hidden aria-hidden="true"></textarea>
         <div class="row">
-          <button class="btn pri" id="km-load">読み込む</button>
-          <label class="btn file">ファイルを選ぶ<input type="file" id="km-file" accept=".json,.keymap,.dtsi,.txt" hidden></label>
-          <button class="btn" id="km-kb">キーボードから読み込む</button>
+          <button class="btn pri" id="km-kb">キーボードから読み込む</button>
           <button class="btn" id="km-save" hidden>長押し込みの JSON を保存</button>
           <button class="btn" id="km-sample">サンプル配列にする</button>
           <button class="btn" id="km-edit">キーを直接編集</button>
@@ -406,7 +388,6 @@ body.ev-wide .wrap{max-width:1360px}
       </div>
       <div class="ev-actions">
         <button class="btn pri" id="ev-read">キーボードから読み込む</button>
-        <label class="btn" id="ev-json-l" hidden>JSON を当てはめる<input type="file" id="ev-json" accept=".json" hidden></label>
       </div>
     </div>
     <p class="status" id="ev-status"></p>
@@ -451,7 +432,7 @@ body.ev-wide .wrap{max-width:1360px}
      </aside>
     </div>
   </section>
-  <footer class="foot">非公式ツールです。Keychron とは関係ありません。配列は USB でつないだキーボード、または Keychron Launcher の書き出しファイルから読み込みます。</footer>
+  <footer class="foot">非公式ツールです。Keychron とは関係ありません。配列は USB でつないだキーボードから読み込みます。</footer>
 </div>
 
 <script>
@@ -1437,19 +1418,11 @@ $('#kmsrc').addEventListener('click',e=>{
   if(e.target.id==='open-own'){const t=$('#settings');t.open=true;t.scrollIntoView({behavior:'smooth',block:'start'});return;}
   if(e.target.id!=='open-set')return;showOnboard();});
 $('#ob-back').addEventListener('click',()=>{S.onboard=false;$('#onboard').hidden=true;$('#app').hidden=false;renderAll();});
-$('#ob-file').addEventListener('change',e=>{readFile(e.target.files[0]);e.target.value='';});
-const drop=$('#drop');
-['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];readFile(f);});
-document.addEventListener('paste',e=>{if(!S.onboard)return;const t=e.clipboardData&&e.clipboardData.getData('text');if(t&&t.trim()){e.preventDefault();importText(t);}});
 $('#ob-demo').addEventListener('click',()=>{if(loadKeymap(DEFAULT_KM,'サンプル配列を読み込みました。',true)){S.demo=true;showApp();}});
-$('#km-load').addEventListener('click',e=>{e.currentTarget.blur();if(loadKeymap($('#km').value,null,true)){store.set('imported',true);S.demo=false;}});
 $('#ob-kb').addEventListener('click',e=>{e.currentTarget.blur();kbImport($('#ob-status'),()=>{showApp();$('#km-save').hidden=false;});});
 $('#km-kb').addEventListener('click',e=>{e.currentTarget.blur();kbImport($('#km-status'),()=>{$('#km-save').hidden=false;});});
 $('#km-save').addEventListener('click',e=>{e.currentTarget.blur();const t=store.get('keymap',null);let o=S.lastRead;if(!o&&t){try{o=JSON.parse(t);}catch(err){}}if(!o||!saveJson(o)){$('#km-status').className='status err';$('#km-status').textContent='保存できませんでした。';}});
 $('#km-sample').addEventListener('click',e=>{e.currentTarget.blur();if(loadKeymap(DEFAULT_KM,'サンプル配列を読み込みました。',true))S.demo=true;});
-$('#km-file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#km').value=r.result;if(loadKeymap(r.result,null,true)){store.set('imported',true);S.demo=false;}};r.readAsText(f);e.target.value='';});
 $('#km-edit').addEventListener('click',e=>{S.edit=!S.edit;e.currentTarget.blur();if(!S.edit){$('#editor').hidden=true;S.editPos=null;}else{$('#ed-where').textContent='編集したいキーをクリックしてください（レイヤーは上のボタンで切替）';$('#editor').hidden=false;}renderAll();});
 $('#ed-apply').addEventListener('click',applyEdit);
 $('#ed-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyEdit();}if(e.key==='Escape'){e.preventDefault();e.target.blur();}});
@@ -1530,7 +1503,7 @@ function evCbText(cb){if(!cb)return 'なし';const ks=cb.keys.map(evBaseName).jo
 function evPosName(p){const g=EV.geo&&EV.geo[EV.matrix.findIndex(m=>m.row*14+m.col===p)];return (g?(g.side==='L'?'左':'右')+g.finger:'')+` (${Math.floor(p/14)},${p%14})`;}
 /* ---------- render ---------- */
 function evRender(){
-  $('#ev-body').hidden=!evHas();$('#ev-json-l').hidden=!evHas();
+  $('#ev-body').hidden=!evHas();
   if(!evHas())return;
   const n=EV.cur.keys.length;
   $('#ev-layers').innerHTML=Array.from({length:n},(_,L)=>`<button class="chip${L===EV.layer?' on':''}" data-l="${L}">${L===0?'ベース':'Layer '+L}</button>`).join('');
@@ -1755,7 +1728,6 @@ $('#ev-list').addEventListener('click',e=>{const b=e.target.closest('[data-undo]
   if(d.t==='key'){EV.cur.keys[d.L][d.p]=d.from;const k=evKey(d.L,d.p);if(d.hf)EV.cur.ht.set(k,Object.assign({},d.hf));else EV.cur.ht.delete(k);}
   else EV.cur.combos[d.i]=d.from?Object.assign({},d.from,{keys:d.from.keys.slice()}):null;evRender();});
 $('#ev-write').addEventListener('click',evWrite);
-$('#ev-json').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{evApplyJson(JSON.parse(String(r.result)));$('#ev-status').className='status ok';$('#ev-status').textContent=`${f.name} を当てはめました。変更点を確かめてから書き込んでください。`;}catch(err){$('#ev-status').className='status err';$('#ev-status').textContent=err.message;}evRender();};r.readAsText(f);e.target.value='';});
 
 /* USB only works on the real site; elsewhere (e.g. inside claude.ai) send people there */
 const SITE_URL='https://shakushakupanda.github.io/orca-echo-type/';
@@ -1776,8 +1748,8 @@ $('#sharelink').href=SHARE_URL;
   let qid=null;try{qid=new URLSearchParams(location.search).get('id');}catch(e){}
   if(qid&&/^[0-9a-f-]{36}$/i.test(qid)){
     try{
-      const rows=await supaFetch('keymaps?select=id,name,layers&id=eq.'+qid);
-      if(rows&&rows[0]){const text=JSON.stringify(toLauncher(rows[0].layers));
+      const rows=await supaFetch('keymaps?select=id,name,layers,extra&id=eq.'+qid);
+      if(rows&&rows[0]){const ex=rows[0].extra||{};const text=JSON.stringify(Object.assign(toLauncher(rows[0].layers),{combos:ex.combos||[],macros:ex.macros||[],holdTaps:ex.holdTaps||[]}));
         if(loadKeymap(text,rows[0].name+' さんの配列を読み込みました（自分の保存済み配列はそのままです）',true,true)){S.shared={id:rows[0].id,name:rows[0].name};setupEmu();showApp();return;}}
     }catch(e){}
   }

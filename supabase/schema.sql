@@ -60,3 +60,12 @@ $$;
 
 revoke all on function public.delete_keymap(uuid, text) from public;
 grant execute on function public.delete_keymap(uuid, text) to anon, authenticated;
+
+-- 2026-11-11 追加: コンボ・マクロ・長押しキーの中身を保存する欄
+alter table public.keymaps
+  add column if not exists extra jsonb not null default '{}'::jsonb;
+alter table public.keymaps drop constraint if exists keymaps_extra_check;
+alter table public.keymaps add constraint keymaps_extra_check
+  check (jsonb_typeof(extra) = 'object' and octet_length(extra::text) < 20000);
+grant select (extra) on public.keymaps to anon, authenticated;
+grant insert (extra) on public.keymaps to anon, authenticated;

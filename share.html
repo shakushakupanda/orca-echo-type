@@ -150,6 +150,17 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
 .field label{font-size:12px;color:var(--muted)}
 .field input,.field textarea{font:inherit;font-size:14px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical}
 .foot{font-size:12px;color:var(--muted);text-align:center}
+.cb-badge rect{fill:var(--hold-soft);stroke:var(--hold);stroke-width:1.4}
+.cb-badge text{fill:var(--hold);font-family:var(--f-body);font-size:10.5px;font-weight:700;text-anchor:middle;pointer-events:none}
+.cb-line{stroke:var(--hold);stroke-width:1.4;stroke-dasharray:3 3;opacity:.7}
+.extras{display:flex;flex-direction:column;gap:8px}
+.macros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px}
+.macros .mc{display:inline-flex;gap:8px;align-items:baseline;border:1px dashed var(--mod);border-radius:8px;padding:3px 10px;background:var(--surface);max-width:100%;min-width:0}
+.macros .mc b{font-family:var(--f-mono);color:var(--mod);font-weight:600}
+.macros .mc span{color:var(--ink);overflow-wrap:anywhere}
+.macros .cb{border-color:var(--hold)} .macros .cb b{color:var(--hold)} .macros .cb.off{opacity:.5}
+.srcpick{display:flex;flex-direction:column;gap:8px}
+.srcpick h3{margin:0}
 .detail-acts{display:flex;flex-wrap:wrap;gap:8px}
 .backlink{font-size:13px;color:var(--muted);text-decoration:none}
 .backlink:hover{color:var(--ink)}
@@ -215,7 +226,7 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
     <p class="note">基準にする配列を選ぶと、英字・数字・記号がどれだけ同じ場所（同じレイヤー・同じキー）にあるかで近い順に並べます。比べるときは、全員を右上で選んだ PC 配列で打ったものとして計算します。</p>
     <div class="panel picker">
       <select id="simsel" aria-label="基準にする配列"></select>
-      <label class="btn">自分の JSON で比べる<input type="file" id="simfile" accept=".json" hidden></label>
+      <button class="btn" id="simmine" hidden>練習で読み込んだ自分の配列で比べる</button>
       <span class="status" id="simstatus"></span>
     </div>
     <div class="panel" id="insight" hidden></div>
@@ -239,13 +250,11 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
     <div class="vhead"><h2>配列を投稿する</h2></div>
     <div class="post">
       <div class="view">
-        <label class="drop" id="drop" for="pfile">
-          <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="6"/><path d="M24 31V18m0 0-5 5m5-5 5 5"/></svg>
-          <b>Launcher の JSON を選ぶ</b>
-          <span class="muted small">またはここにドラッグ／貼り付け</span>
-          <input type="file" id="pfile" accept=".json" hidden>
-        </label>
-        <button class="btn" id="usetyping" hidden>タイピング練習で読み込んだ配列を使う</button>
+        <div class="panel srcpick">
+          <h3>投稿する配列</h3>
+          <p class="note small">USB でつないだ Orca echo から、キーマップ・長押しキー・コンボ・マクロを読み込みます（Chrome / Edge）。</p>
+          <div class="detail-acts"><button class="btn pri" id="pkb">キーボードから読み込む</button><button class="btn" id="usetyping" hidden>タイピング練習で読み込んだ配列を使う</button></div>
+        </div>
         <div class="panel board" id="pboard" hidden><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="投稿する配列のプレビュー"></svg></div>
       </div>
       <form class="panel form" id="pform" novalidate>
@@ -273,6 +282,7 @@ select{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:
     <p class="status" id="dstatus"></p>
     <div class="chips" id="dchips"></div>
     <div class="panel board" id="dboard"><svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="配列"></svg></div>
+    <div class="extras" id="dextras"></div>
   </section>
 
   <footer class="foot">非公式ツールです。Keychron とは関係ありません。</footer>
@@ -705,6 +715,130 @@ function labelOf(k){
 }
 
 
+const OE_ROWS=4,OE_COLS=14;
+function hidCmd(d,bytes,match,timeout){
+  return new Promise((res,rej)=>{
+    let done=false;
+    const h=e=>{const a=new Uint8Array(e.data.buffer,e.data.byteOffset,e.data.byteLength);if(!match(a))return;done=true;clearTimeout(t);d.removeEventListener('inputreport',h);res(a.slice());};
+    const t=setTimeout(()=>{if(done)return;d.removeEventListener('inputreport',h);rej(new Error('キーボードから応答がありません'));},timeout||1500);
+    d.addEventListener('inputreport',h);
+    const b=new Uint8Array(32);b.set(bytes);
+    d.sendReport(0,b).catch(err=>{clearTimeout(t);d.removeEventListener('inputreport',h);rej(err);});
+  });
+}
+async function getOrca(ask){
+  if(!('hid' in navigator))throw Object.assign(new Error('このブラウザは USB 接続に対応していません。Chrome か Edge で開いてください。'),{code:'nohid'});
+  let d=null;
+  if(!ask){const ds=await navigator.hid.getDevices();d=ds.find(x=>x.collections.some(c=>c.usagePage===0xFF60&&c.usage===0x61)&&/orca/i.test(x.productName||''))||null;}
+  if(!d){const devs=await navigator.hid.requestDevice({filters:[{usagePage:0xFF60,usage:0x61}]});d=devs[0];}
+  if(!d)throw Object.assign(new Error('接続をキャンセルしました。'),{code:'cancel'});
+  if(!/orca/i.test(d.productName||''))throw new Error((d.productName||'このキーボード')+' は Orca echo ではないようです。');
+  if(!d.opened)await d.open();
+  return d;
+}
+async function readFromKeyboard(onp,dev){
+  const d=dev||await getOrca(true);
+  try{
+    const lc=(await hidCmd(d,[0x11],a=>a[0]===0x11))[1];
+    if(!lc||lc>16)throw new Error('レイヤー数を読み取れませんでした。');
+    const per=OE_ROWS*OE_COLS*2,total=lc*per,buf=new Uint8Array(total);
+    for(let off=0;off<total;off+=28){
+      const size=Math.min(28,total-off);
+      const r=await hidCmd(d,[0x12,off>>8,off&255,size],a=>a[0]===0x12&&a[1]===(off>>8)&&a[2]===(off&255));
+      buf.set(r.slice(4,4+size),off);if(onp)onp('キーマップを読み込み中…',(off+size)/total*0.7);
+    }
+    const keymap=[],cells=[];
+    for(let L=0;L<lc;L++){const arr=[];for(let r=0;r<OE_ROWS;r++)for(let c=0;c<OE_COLS;c++){const o=L*per+(r*OE_COLS+c)*2;const val=(buf[o]<<8)|buf[o+1];arr.push({col:c,row:r,val});if(val===HT_MARK)cells.push({L,r,c});}keymap.push(arr);}
+    const holdTaps=[];
+    for(let i=0;i<cells.length;i++){
+      const {L,r,c}=cells[i];
+      const a=await hidCmd(d,[0xa7,0x20,0x08,L,r,c],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x08&&a[4]===r&&a[5]===c);
+      if(a[3]===0)holdTaps.push({layer:L,row:r,col:c,tap:a[6]|(a[7]<<8),hold:a[8]|(a[9]<<8),term:a[10]|(a[11]<<8)});
+      if(onp)onp('長押しキーを読み込み中…',0.7+(i+1)/cells.length*0.3);
+    }
+    let combos=[],macros=[];
+    try{if(onp)onp('コンボを読み込み中…',0.98);combos=await readCombos(d);}catch(e){}
+    try{if(onp)onp('マクロを読み込み中…',0.99);macros=await readMacros(d);}catch(e){}
+    return {source:'keyboard',device:d.productName,readAt:new Date().toISOString(),keymap,holdTaps,combos,macros};
+  }finally{if(!dev){try{await d.close();}catch(e){}}}
+}
+async function readCombos(d){
+  const out=[];
+  for(let i=0;i<30;i++){
+    const a=await hidCmd(d,[0xa7,0x20,0x0a,i],a=>a[0]===0xa7&&a[1]===0x20&&a[2]===0x0a);
+    if(a[3]!==0)continue;
+    const keys=[a[7],a[8],a[9],a[10]].filter(x=>x!==0xff);
+    out.push({index:i,term:a[4]|(a[5]<<8),layers:a[6],keys,kc:a[11]|(a[12]<<8),hold:a[13]|(a[14]<<8)});
+  }
+  return out;
+}
+async function readMacros(d){
+  const count=(await hidCmd(d,[0x0C],a=>a[0]===0x0C))[1];
+  const sz=await hidCmd(d,[0x0D],a=>a[0]===0x0D);const size=(sz[1]<<8)|sz[2];
+  if(!count||!size)return [];
+  const buf=[];let nul=0;
+  for(let off=0;off<size&&nul<count;off+=28){
+    const n=Math.min(28,size-off);
+    const r=await hidCmd(d,[0x0E,off>>8,off&255,n],a=>a[0]===0x0E&&a[1]===(off>>8)&&a[2]===(off&255));
+    for(let k=0;k<n;k++){buf.push(r[4+k]);if(r[4+k]===0)nul++;}
+  }
+  return parseMacroBuffer(buf,count);
+}
+function parseMacroBuffer(buf,count){
+  const out=[];let i=0;
+  for(let n=0;n<count&&i<buf.length;n++){
+    const acts=[];let text='';const flush=()=>{if(text){acts.push({t:'text',s:text});text='';}};
+    while(i<buf.length&&buf[i]!==0){
+      const b=buf[i];
+      if(b===1&&i+1<buf.length){
+        const op=buf[i+1];
+        if(op>=1&&op<=3){flush();acts.push({t:['','tap','down','up'][op],kc:buf[i+2]});i+=3;continue;}
+        if(op===4){flush();let j=i+2,d='';while(j<buf.length&&buf[j]!==0x7C&&buf[j]!==0){d+=String.fromCharCode(buf[j]);j++;}acts.push({t:'delay',ms:parseInt(d,10)||0});i=j+1;continue;}
+        if(op>=5&&op<=7){flush();acts.push({t:['','','','','','tap','down','up'][op],kc:buf[i+2]|(buf[i+3]<<8)});i+=4;continue;}
+      }
+      text+=String.fromCharCode(b);i++;
+    }
+    flush();i++;
+    if(acts.length)out.push({index:n,actions:acts});
+  }
+  return out;
+}
+function macroOf(n){return (S.macros||[]).find(m=>m.index===n)||null;}
+function mcKey(kc){const z=qmkToZmk(kc);if(z.startsWith('&kp '))return tapLabel(resolveKey(z.slice(4)));return z.replace('&','');}
+function macroText(mc){
+  const a=mc.actions,out=[];
+  for(let i=0;i<a.length;i++){
+    const x=a[i];
+    if(x.t==='text'){out.push('「'+x.s+'」');continue;}
+    if(x.t==='delay'){out.push(x.ms+'ms待つ');continue;}
+    if(x.t==='down'){const held=[];let j=i;while(j<a.length&&a[j].t==='down'){held.push(a[j].kc);j++;}
+      const taps=[];while(j<a.length&&a[j].t==='tap'){taps.push(a[j].kc);j++;}
+      if(taps.length){out.push(held.map(mcKey).join('+')+'+'+taps.map(mcKey).join(','));let k=j;while(k<a.length&&a[k].t==='up'&&held.includes(a[k].kc))k++;i=k-1;continue;}
+      out.push(mcKey(x.kc)+'↓');continue;}
+    if(x.t==='up'){out.push(mcKey(x.kc)+'↑');continue;}
+    out.push(mcKey(x.kc));
+  }
+  return out.join(' → ');
+}
+function macroShort(mc){const a=mc.actions;if(a.length===1&&a[0].t==='text')return a[0].s.slice(0,4);const t=macroText(mc);return t.length<=5?t:'M'+mc.index;}
+function drawComboOverlay(svg,items){
+  if(!svg)return;let g=svg.querySelector('g.combo-ov');if(g)g.remove();
+  if(!items.length)return;
+  g=document.createElementNS(NS,'g');g.setAttribute('class','combo-ov');
+  let html='';
+  for(const it of items){
+    const n=it.pts.length;if(n<2)continue;
+    let cx=0,cy=0;for(const [x,y] of it.pts){cx+=x;cy+=y;}cx/=n;cy/=n;
+    const xs=it.pts.map(p=>p[0]),ys=it.pts.map(p=>p[1]);const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
+    let by=cy;if(dx>=dy)by=cy-KW*0.40;
+    const far=it.pts.some(([x,y])=>Math.hypot(x-cx,y-by)>U*0.9);
+    if(far)for(const [x,y] of it.pts){const d=Math.hypot(x-cx,y-by)||1,k=Math.max(0,(d-KW*0.5)/d);html+=`<line class="cb-line" x1="${cx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${(cx+(x-cx)*k).toFixed(1)}" y2="${(by+(y-by)*k).toFixed(1)}"/>`;}
+    const t=[...it.label].length>6?[...it.label].slice(0,5).join('')+'…':it.label;
+    const w=Math.max(22,[...t].reduce((a,ch)=>a+(ch.charCodeAt(0)>255?11:6.6),0)+12);
+    html+=`<g class="cb-badge${it.cls?' '+it.cls:''}"${it.ci!=null?` data-ci="${it.ci}"`:''}><rect x="${(cx-w/2).toFixed(1)}" y="${(by-9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="9"/><text x="${cx.toFixed(1)}" y="${(by+4).toFixed(1)}">${esc(t)}</text><title>${esc(it.title||it.label)}</title></g>`;
+  }
+  g.innerHTML=html;svg.appendChild(g);
+}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const mine=()=>store.get('mine',{});
 const LNAME=['ベース','Fn1','Fn2','Fn3','L4','L5','L6','L7'];
@@ -713,7 +847,8 @@ const THUMBS={'3,3':1,'3,4':1,'3,5':1,'3,9':1,'3,10':1};
 function posWords(p){const r=Math.floor(p/14),c=p%14;return (c<=6?'左':'右')+(THUMBS[r+','+c]?'親指':OE_FINGER[c])+' '+ROWW[r];}
 
 function prep(rec){
-  const km=importLauncher(toLauncher(rec.layers));const model=buildModel(km);
+  const ex=rec.extra||{};
+  const km=importLauncher(Object.assign(toLauncher(rec.layers),{combos:Array.isArray(ex.combos)?ex.combos:[]}));const model=buildModel(km);
   return Object.assign(rec,{km,model,geo:launcherGeometry(km.matrix),R:reachPaths(model),pos:km.matrix.map(p=>p.row*14+p.col)});
 }
 const CANON=prep({layers:fromLauncherObj(JSON.parse(DEFAULT_KM))});
@@ -745,9 +880,23 @@ function drawBoard(svg,geo,cells,onClick){
   });
 }
 function recCells(rec,L){
-  return i=>{S.model=rec.model;const k=rec.model.layers[L]&&rec.model.layers[L].keys[i];if(!k)return {};
+  useRec(rec);return i=>{S.model=rec.model;const k=rec.model.layers[L]&&rec.model.layers[L].keys[i];if(!k)return {};
     const trans=k.trans&&L>0;const lab=labelOf(trans?rec.model.layers[0].keys[i]:k);
     return {m:lab.m,s:trans?'':lab.s,cls:trans?'trans':''};};
+}
+function useRec(rec){S.model=rec.model;S.macros=(rec.extra&&Array.isArray(rec.extra.macros))?rec.extra.macros:[];
+}
+function recOverlay(svg,rec,L){
+  useRec(rec);
+  drawComboOverlay(svg,rec.model.combos.map((cb,ci)=>{const on=cb.mask==null?L===0:!!(cb.mask&(1<<L));if(!on||!cb.key)return null;
+    const lab=labelOf(cb.key).m||'?';return {pts:cb.pos.map(i=>rec.geo[i]).filter(Boolean).map(g=>[g.x*U,g.y*U]),label:lab,title:'コンボ: '+lab};}).filter(Boolean));
+}
+function recExtras(rec,L){
+  useRec(rec);const m=rec.model;const keyName=i=>{const k=m.layers[L]&&m.layers[L].keys[i];const kk=k&&k.trans&&L>0?m.layers[0].keys[i]:k;return kk?labelOf(kk).m||'?':'?';};
+  const cbs=m.combos.map(cb=>{const on=cb.mask==null?L===0:!!(cb.mask&(1<<L));const ls=cb.mask==null?'':[...Array(8).keys()].filter(x=>cb.mask&(1<<x)).map(x=>LNAME[x]||'L'+x).join('・');
+    return `<span class="mc cb${on?'':' off'}"><b>${esc(cb.pos.map(keyName).join(' + '))}</b><span>→ ${esc(cb.key?labelOf(cb.key).m:'?')}${on?'':'（'+esc(ls)+'）'}</span></span>`;}).join('');
+  const ms=(S.macros||[]).map(mc=>`<span class="mc"><b>M${mc.index}</b><span>${esc(macroText(mc))}</span></span>`).join('');
+  return (cbs?`<div class="macros"><span class="muted small">コンボ</span>${cbs}</div>`:'')+(ms?`<div class="macros"><span class="muted small">マクロ</span>${ms}</div>`:'');
 }
 function layerChips(box,n,cur,on){
   box.innerHTML=Array.from({length:n},(_,i)=>`<button class="chip${i===cur?' on':''}" data-l="${i}">${LNAME[i]||'L'+i}</button>`).join('');
@@ -761,7 +910,7 @@ async function loadAll(){
   st.className='status muted';st.textContent='読み込み中…';
   const timer=setTimeout(()=>{if(!P.loaded){st.textContent='読み込みに時間がかかっています…';}},10000);
   try{
-    const rows=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers&order=created_at.desc&limit=1000');
+    const rows=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers,extra&order=created_at.desc&limit=1000');
     P.rows=[];for(const r of rows||[]){try{P.rows.push(prep(r));}catch(e){}}
     P.loaded=true;P.error=null;st.textContent='';
   }catch(e){P.loaded=true;P.error='読み込めませんでした: '+e.message;st.className='status err';st.textContent=P.error;}
@@ -777,7 +926,7 @@ function renderList(){
   const grid=$('#grid');
   if(!P.rows.length){grid.innerHTML=`<div class="empty panel" style="grid-column:1/-1"><b>${P.error?esc(P.error):'まだ投稿がありません'}</b>${P.error?'':'最初の1人になりませんか？ <a href="#post" style="color:var(--accent)">配列を投稿する</a>'}</div>`;return;}
   grid.innerHTML=rows.map(r=>`<a class="card" href="#km-${r.id}"><div class="meta"><span class="nm"></span><span class="badge${my[r.id]?' mine':''}">${my[r.id]?'自分':r.host.toUpperCase()}</span></div><div class="board"><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg></div><div class="cm"></div><span class="muted small">${fmtDate(r.created_at)}</span></a>`).join('')||'<p class="note">該当する配列がありません。</p>';
-  [...grid.querySelectorAll('.card')].forEach((el,i)=>{const r=rows[i];el.querySelector('.nm').textContent=r.name;el.querySelector('.cm').textContent=r.comment||'';drawBoard(el.querySelector('svg'),r.geo,recCells(r,0));});
+  [...grid.querySelectorAll('.card')].forEach((el,i)=>{const r=rows[i];el.querySelector('.nm').textContent=r.name;el.querySelector('.cm').textContent=r.comment||'';drawBoard(el.querySelector('svg'),r.geo,recCells(r,0));recOverlay(el.querySelector('svg'),r,0);});
 }
 
 /* ---- trends: most common binding per position ---- */
@@ -888,15 +1037,17 @@ function renderCompare(ref,oth){
   const L=P.cmpLayer;
   drawBoard($('#cmpboard svg'),CANON.geo,i=>{const p=CANON.pos[i];const same=rawAt(ref,L,p)===rawAt(oth,L,p);const lb=labAt(oth,L,p),la=labAt(ref,L,p);
     return same?{m:lb,cls:'same'}:{m:lb,s:la,heat:.55,cls:'diff'};});
+  recOverlay($('#cmpboard svg'),oth,L);
   const diffs=[...SIMCHARS].filter(c=>va[c]!==vb[c]);
   $('#cmptable tbody').innerHTML=diffs.length?diffs.map(c=>`<tr><td class="ch">${esc(c)}</td><td>${esc(placeTextKey(va[c]))}</td><td>${esc(placeTextKey(vb[c]))}</td></tr>`).join(''):'<tr><td colspan="3" class="muted">英字・数字・記号はすべて同じ場所にあります。</td></tr>';
   $('#cmpview').href='#km-'+oth.id;$('#cmppractice').href='./?id='+oth.id;
 }
 function renderSimilar(){
+  {const t=store.get('keymap',null);$('#simmine').hidden=!(t&&String(t).trim().startsWith('{'));}
   const sel=$('#simsel');const my=mine();
   if(!P.simRef){const firstMine=P.rows.find(r=>my[r.id]);P.simRef=firstMine||P.rows[0]||null;}
   const opts=P.rows.map(r=>`<option value="${r.id}">${my[r.id]?'（自分）':''}${esc(r.name)}</option>`).join('');
-  sel.innerHTML=(P.simRef&&P.simRef.local?'<option value="__local">読み込んだ JSON</option>':'')+(opts||'<option value="">投稿がまだありません</option>');
+  sel.innerHTML=(P.simRef&&P.simRef.local?'<option value="__local">自分の配列（練習で読み込んだもの）</option>':'')+(opts||'<option value="">投稿がまだありません</option>');
   if(P.simRef)sel.value=P.simRef.local?'__local':P.simRef.id;
   const rank=$('#rank'),ins=$('#insight');
   if(!P.simRef||!P.rows.length){rank.innerHTML=`<div class="empty panel"><b>${P.error?esc(P.error):'比べる配列がまだありません'}</b></div>`;ins.hidden=true;$('#cmp').hidden=true;return;}
@@ -913,13 +1064,27 @@ $('#rank').addEventListener('click',e=>{const el=e.target.closest('.rk');if(!el)
 $('#rank').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const el=e.target.closest('.rk');if(!el)return;e.preventDefault();el.click();});
 
 /* ---- post ---- */
-function setPost(text,from){
+function extraOf(obj){
+  const ex={};
+  if(Array.isArray(obj.combos)&&obj.combos.length)ex.combos=obj.combos.map(c=>({index:c.index|0,term:c.term|0,layers:c.layers|0,keys:(c.keys||[]).slice(0,4).map(x=>x|0),kc:c.kc|0,hold:c.hold|0}));
+  if(Array.isArray(obj.macros)&&obj.macros.length)ex.macros=obj.macros.slice(0,16);
+  if(Array.isArray(obj.holdTaps)&&obj.holdTaps.length)ex.holdTaps=obj.holdTaps.map(h=>({layer:h.layer|0,row:h.row|0,col:h.col|0,tap:h.tap|0,hold:h.hold|0,term:h.term|0}));
+  return ex;
+}
+function setPostObj(obj,from){
   const st=$('#pstatus');
-  try{const obj=JSON.parse(text);const layers=fromLauncherObj(obj);const rec=prep({layers,name:'',host:P.phost});P.post=rec;
-    $('#pboard').hidden=false;drawBoard($('#pboard svg'),rec.geo,recCells(rec,0));
-    st.className='status ok';st.textContent=(from||'JSON')+'を読み込みました（'+layers.length+'レイヤー）。ニックネームを入れて投稿できます。';
-  }catch(e){P.post=null;$('#pboard').hidden=true;st.className='status err';st.textContent=e.message.startsWith('Unexpected')?'JSON として読めませんでした。Launcher で書き出したファイルを選んでください。':e.message;}
+  try{const layers=fromLauncherObj(obj);const extra=extraOf(obj);const rec=prep({layers,extra,name:'',host:P.phost});P.post=rec;
+    $('#pboard').hidden=false;drawBoard($('#pboard svg'),rec.geo,recCells(rec,0));recOverlay($('#pboard svg'),rec,0);
+    const cn=(extra.combos||[]).length,mn=(extra.macros||[]).length;
+    st.className='status ok';st.textContent=`${from}を読み込みました（${layers.length}レイヤー${cn?`・コンボ ${cn} 個`:''}${mn?`・マクロ ${mn} 個`:''}）。ニックネームを入れて投稿できます。`;
+    if(!obj.source)st.textContent+=' ※この配列には長押しキー・コンボ・マクロの情報が入っていません。キーボードから読み込むと含められます。';
+  }catch(e){P.post=null;$('#pboard').hidden=true;st.className='status err';st.textContent=e.message;}
   updateSubmit();
+}
+async function postFromKeyboard(){
+  const st=$('#pstatus');const say=(t,c)=>{st.className='status'+(c?' '+c:'');st.textContent=t;};
+  try{say('一覧から Orca echo を選んでください…');const obj=await readFromKeyboard((t,p)=>say(`${t} ${Math.round(p*100)}%`));setPostObj(obj,'キーボードから配列');}
+  catch(e){if(e&&(e.code==='cancel'||e.name==='NotFoundError'))say('接続をキャンセルしました。');else if(e&&e.name==='SecurityError')say('このページからは USB 接続できません。Chrome / Edge で開いてください。','err');else say(((e&&e.message)||'読み込めませんでした。')+' Keychron Launcher を開いている場合は閉じてから試してください。','err');}
 }
 function updateSubmit(){$('#psubmit').disabled=!(P.post&&$('#pname').value.trim()&&SUPA.url);}
 async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -928,8 +1093,8 @@ async function submitPost(e){
   const st=$('#pstatus'),btn=$('#psubmit');btn.disabled=true;st.className='status';st.textContent='投稿しています…';
   try{
     const token=[...crypto.getRandomValues(new Uint8Array(24))].map(x=>x.toString(16).padStart(2,'0')).join('');
-    const body={name:$('#pname').value.trim().slice(0,30),comment:$('#pcomment').value.trim().slice(0,200),host:P.phost,layers:P.post.layers,delete_hash:await sha256hex(token)};
-    const res=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    const body={name:$('#pname').value.trim().slice(0,30),comment:$('#pcomment').value.trim().slice(0,200),host:P.phost,layers:P.post.layers,extra:P.post.extra||{},delete_hash:await sha256hex(token)};
+    const res=await supaFetch('keymaps?select=id,created_at,name,comment,host,layers,extra',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
     const row=res&&res[0];if(!row)throw new Error('投稿の結果を受け取れませんでした');
     const my=mine();my[row.id]=token;store.set('mine',my);store.set('nick',body.name);
     P.rows.unshift(prep(row));P.post=null;$('#pform').reset();$('#pboard').hidden=true;
@@ -937,7 +1102,7 @@ async function submitPost(e){
   }catch(err){st.className='status err';st.textContent='投稿できませんでした: '+err.message;btn.disabled=false;}
 }
 function renderPost(){
-  const t=store.get('keymap',null);$('#usetyping').hidden=!(t&&String(t).trim().startsWith('{'));
+  const t=store.get('keymap',null);$('#usetyping').hidden=!(t&&String(t).trim().startsWith('{'));$('#pkb').hidden=!('hid' in navigator);
   if(!$('#pname').value)$('#pname').value=store.get('nick','');
   document.querySelectorAll('#phost button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.h===P.phost));
   if(!SUPA.url){$('#pstatus').className='status';$('#pstatus').textContent='データベースの準備中のため、まだ投稿できません。';}
@@ -947,7 +1112,7 @@ function renderPost(){
 /* ---- detail ---- */
 function renderDetail(id){
   const r=P.rows.find(x=>x.id===id);const v=$('#v-detail');
-  if(!r){$('#dname').textContent=P.loaded?'配列が見つかりません':'読み込み中…';$('#dmeta').textContent='';$('#dcomment').textContent=P.loaded?'削除されたか、URL が違うようです。':'';$('#dboard').hidden=true;$('#dchips').innerHTML='';v.querySelector('.detail-acts').hidden=true;return;}
+  if(!r){$('#dextras').innerHTML='';$('#dname').textContent=P.loaded?'配列が見つかりません':'読み込み中…';$('#dmeta').textContent='';$('#dcomment').textContent=P.loaded?'削除されたか、URL が違うようです。':'';$('#dboard').hidden=true;$('#dchips').innerHTML='';v.querySelector('.detail-acts').hidden=true;return;}
   v.querySelector('.detail-acts').hidden=false;$('#dboard').hidden=false;
   $('#dname').textContent=r.name;$('#dmeta').textContent=`${fmtDate(r.created_at)} · PC配列 ${r.host.toUpperCase()}`;$('#dcomment').textContent=r.comment||'';
   $('#dpractice').href='./?id='+r.id;
@@ -961,7 +1126,8 @@ function renderDetail(id){
     }catch(e){$('#dstatus').className='status err';$('#dstatus').textContent='削除できませんでした: '+e.message;b.disabled=false;}};
   const n=r.model.layers.length;if(P.dLayer>=n)P.dLayer=0;
   layerChips($('#dchips'),n,P.dLayer,l=>{P.dLayer=l;renderDetail(id);});
-  drawBoard($('#dboard svg'),r.geo,recCells(r,P.dLayer));
+  drawBoard($('#dboard svg'),r.geo,recCells(r,P.dLayer));recOverlay($('#dboard svg'),r,P.dLayer);
+  $('#dextras').innerHTML=recExtras(r,P.dLayer);
 }
 
 /* ---- routing ---- */
@@ -982,14 +1148,9 @@ window.addEventListener('hashchange',()=>{const d=$('#ddelete');d.dataset.confir
 $('#hostsel').addEventListener('click',e=>{const b=e.target.closest('button[data-host]');if(!b)return;S.host=b.dataset.host;store.set('host',S.host);route();});
 $('#q').addEventListener('input',()=>renderList());
 $('#simsel').addEventListener('change',e=>{const v=e.target.value;if(v==='__local')return;P.simRef=P.rows.find(r=>r.id===v)||null;renderSimilar();});
-$('#simfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const rec=prep({layers:fromLauncherObj(JSON.parse(String(rd.result))),host:S.host,id:'__local',name:'読み込んだ JSON'});rec.local=true;P.simRef=rec;$('#simstatus').className='status ok';$('#simstatus').textContent='読み込んだ配列と比べています。';renderSimilar();}catch(err){$('#simstatus').className='status err';$('#simstatus').textContent=err.message;}};rd.readAsText(f);e.target.value='';});
-$('#pfile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>setPost(String(rd.result),f.name+' ');rd.readAsText(f);e.target.value='';});
-const drop=$('#drop');
-['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>setPost(String(rd.result),f.name+' ');rd.readAsText(f);});
-document.addEventListener('paste',e=>{if((location.hash||'')!=='#post')return;const tg=e.target;if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'))return;const t=e.clipboardData&&e.clipboardData.getData('text');if(t&&t.trim().startsWith('{')){e.preventDefault();setPost(t,'貼り付けた ');}});
-$('#usetyping').addEventListener('click',()=>{const t=store.get('keymap',null);if(t)setPost(String(t),'タイピング練習の配列');});
+$('#usetyping').addEventListener('click',()=>{const t=store.get('keymap',null);if(!t)return;try{setPostObj(JSON.parse(String(t)),'タイピング練習の');}catch(e){$('#pstatus').className='status err';$('#pstatus').textContent='タイピング練習の配列を読めませんでした。';}});
+$('#pkb').addEventListener('click',e=>{e.currentTarget.blur();postFromKeyboard();});
+$('#simmine').addEventListener('click',()=>{const t=store.get('keymap',null);if(!t)return;try{const obj=JSON.parse(String(t));const rec=prep({layers:fromLauncherObj(obj),extra:extraOf(obj),host:S.host,id:'__local',name:'自分の配列（練習で読み込んだもの）'});rec.local=true;P.simRef=rec;$('#simstatus').className='status ok';$('#simstatus').textContent='練習で読み込んだ配列と比べています。';renderSimilar();}catch(err){$('#simstatus').className='status err';$('#simstatus').textContent='自分の配列を読めませんでした。';}});
 $('#phost').addEventListener('click',e=>{const b=e.target.closest('button[data-h]');if(!b)return;P.phost=b.dataset.h;if(P.post)P.post.host=P.phost;renderPost();});
 $('#pname').addEventListener('input',updateSubmit);
 $('#pform').addEventListener('submit',submitPost);
