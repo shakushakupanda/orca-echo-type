@@ -217,7 +217,14 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
 #ev-kb .key.ev-ht .cap{stroke:var(--hold);stroke-width:1.6}
 #ev-kb .key.ev-cbk .cap{fill:var(--hold-soft);stroke:var(--hold);stroke-width:2.4}
 #ev-kb .key:focus-visible .cap{stroke:var(--ink);stroke-width:3}
-.ev-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.ev-grid{display:block}
+.ev-body:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.ev-main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ev-side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);min-width:0}
+.ev-side .ev-combo{max-height:calc(100dvh - 40px);overflow:auto}
+.ev-side .ev-cblist{overflow:auto;min-height:60px;flex:0 1 auto;max-height:42dvh;padding-right:2px}
+.ev-side .ev-combo .vhead{flex-wrap:nowrap}
+body.ev-wide .wrap{max-width:1360px}
 .ev-key,.ev-combo{display:flex;flex-direction:column;gap:10px}
 .ev-key h3,.ev-combo h3,.ev-picker h3,.ev-changes h3{margin:0}
 #ev-key-body,#ev-cb-body{display:flex;flex-direction:column;gap:10px}
@@ -255,7 +262,7 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
 .ev-list .empty{color:var(--muted);justify-content:center}
 .btn.danger{color:var(--miss);border-color:#5a2a27;background:transparent}
 .btn:disabled{opacity:.45;cursor:default}
-@media (max-width:820px){.ev-grid{grid-template-columns:1fr}}
+@media (max-width:980px){.ev-body:not([hidden]){grid-template-columns:1fr}.ev-side{position:static}.ev-side .ev-combo{max-height:none}.ev-side .ev-cblist{max-height:260px}}
 </style>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
@@ -403,7 +410,8 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
       </div>
     </div>
     <p class="status" id="ev-status"></p>
-    <div id="ev-body" hidden>
+    <div id="ev-body" class="ev-body" hidden>
+     <div class="ev-main">
       <div class="ev-layers chips" id="ev-layers"></div>
       <div class="kbwrap"><svg id="ev-kb" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="編集中の配列"></svg></div>
       <div class="ev-grid">
@@ -414,17 +422,6 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
             <div class="ev-slots" id="ev-slots"></div>
             <div class="ev-term" id="ev-term-row" hidden><label for="ev-term">長押しの判定時間</label><input id="ev-term" type="number" min="50" max="1000" step="10"><span class="muted small">ms</span></div>
             <p class="note small" id="ev-key-note"></p>
-          </div>
-        </section>
-        <section class="panel ev-combo" id="ev-combo">
-          <div class="vhead"><h3>コンボ</h3><button class="btn" id="ev-cb-add">コンボを追加</button></div>
-          <div class="ev-cblist" id="ev-cblist"></div>
-          <div id="ev-cb-body" hidden>
-            <div class="ev-cbkeys"><span class="muted small">同時押しするキー</span><span id="ev-cb-keys"></span><button class="btn" id="ev-cb-pick">配列図で選ぶ</button></div>
-            <div class="ev-term"><label for="ev-cb-layer">有効なレイヤー</label><select id="ev-cb-layer"></select></div>
-            <div class="ev-slots" id="ev-cb-slots"></div>
-            <div class="ev-term"><label for="ev-cb-term">判定時間</label><input id="ev-cb-term" type="number" min="10" max="1000" step="10"><span class="muted small">ms</span></div>
-            <div><button class="btn danger" id="ev-cb-del">このコンボを削除</button></div>
           </div>
         </section>
       </div>
@@ -438,6 +435,20 @@ textarea{width:100%;min-height:220px;font-family:var(--f-mono);font-size:12px;li
         <ul class="ev-list" id="ev-list"></ul>
         <p class="note small">書き込み前に、いまのキーボードの設定を JSON で保存します。書き込み後は読み直して、正しく入ったか確かめます。</p>
       </section>
+     </div>
+     <aside class="ev-side">
+        <section class="panel ev-combo" id="ev-combo">
+          <div class="vhead"><h3>コンボ</h3><button class="btn" id="ev-cb-add">コンボを追加</button></div>
+          <div class="ev-cblist" id="ev-cblist"></div>
+          <div id="ev-cb-body" hidden>
+            <div class="ev-cbkeys"><span class="muted small">同時押しするキー</span><span id="ev-cb-keys"></span><button class="btn" id="ev-cb-pick">配列図で選ぶ</button></div>
+            <div class="ev-term"><label for="ev-cb-layer">有効なレイヤー</label><select id="ev-cb-layer"></select></div>
+            <div class="ev-slots" id="ev-cb-slots"></div>
+            <div class="ev-term"><label for="ev-cb-term">判定時間</label><input id="ev-cb-term" type="number" min="10" max="1000" step="10"><span class="muted small">ms</span></div>
+            <div><button class="btn danger" id="ev-cb-del">このコンボを削除</button></div>
+          </div>
+        </section>
+     </aside>
     </div>
   </section>
   <footer class="foot">非公式ツールです。Keychron とは関係ありません。配列は USB でつないだキーボード、または Keychron Launcher の書き出しファイルから読み込みます。</footer>
@@ -1717,7 +1728,7 @@ async function evWrite(){
 }
 /* ---------- view switching + events ---------- */
 function showEditor(on){
-  EV.on=on;$('#editview').hidden=!on;$('#edlink').textContent=on?'← 練習に戻る':'キーマップ編集';
+  EV.on=on;$('#editview').hidden=!on;document.body.classList.toggle('ev-wide',!!on);$('#edlink').textContent=on?'← 練習に戻る':'キーマップ編集';
   if(on){$('#onboard').hidden=true;$('#app').hidden=true;evRender();}
   else{if(S.model){$('#app').hidden=false;$('#onboard').hidden=true;renderAll();}else showOnboard();}
 }
